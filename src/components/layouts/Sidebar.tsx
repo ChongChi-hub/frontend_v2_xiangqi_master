@@ -53,7 +53,7 @@ export const Sidebar: React.FC = () => {
     <aside className="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-[#fcf9f8] border-r border-[#d4c3be] p-4 space-y-4 z-50">
       {/* Brand Logo */}
       <div className="flex items-center gap-2 px-2 py-3">
-        <Link to="/dashboard" className="group">
+        <Link to="/home" className="group">
           <h1 className="font-serif text-2xl font-bold text-[#442a22] tracking-tight group-hover:text-[#5d4037] transition-colors">
             Xiangqi Master
           </h1>

@@ -1,8 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Sparkles } from 'lucide-react';
+import { useAuthStore } from '@/store/auth.store';
 
 export const HeroSection: React.FC = () => {
+  const { isAuthenticated } = useAuthStore();
+  const targetLink = isAuthenticated ? '/dashboard' : '/register';
+
   return (
     <section className="w-full py-12 md:py-20 px-6 max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12">
       {/* Left Text Content */}
@@ -24,10 +28,10 @@ export const HeroSection: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-4 pt-2">
           <Link
-            to="/register"
+            to={targetLink}
             className="bg-[#361e15] hover:bg-[#26140e] text-white font-bold px-7 py-3.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 text-sm"
           >
-            <span>Chơi Ngay</span>
+            <span>{isAuthenticated ? 'Vào Sảnh Đấu' : 'Chơi Ngay'}</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
           <a

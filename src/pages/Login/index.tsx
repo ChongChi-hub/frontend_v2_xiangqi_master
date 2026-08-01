@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { AxiosError } from 'axios';
 import { User, Lock, ArrowRight } from 'lucide-react';
 import { message } from 'antd';
 import { useLoginMutation } from '@/services/auth.service';
@@ -56,10 +57,11 @@ export const LoginPage: React.FC = () => {
           }
           navigate('/');
         },
-        onError: (err: any) => {
+        onError: (err: Error) => {
+          const axiosErr = err as AxiosError<{ error?: string; message?: string }>;
           const errorMsg =
-            err?.response?.data?.error ||
-            err?.response?.data?.message ||
+            axiosErr?.response?.data?.error ||
+            axiosErr?.response?.data?.message ||
             'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin!';
           message.error(errorMsg);
         },

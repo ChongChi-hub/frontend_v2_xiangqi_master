@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { AxiosError } from 'axios';
 import { User, Mail, Lock, ShieldCheck, ArrowRight } from 'lucide-react';
 import { message } from 'antd';
 import { useRegisterMutation } from '@/services/auth.service';
@@ -77,10 +78,11 @@ export const RegisterPage: React.FC = () => {
           }
           navigate('/login');
         },
-        onError: (err: any) => {
+        onError: (err: Error) => {
+          const axiosErr = err as AxiosError<{ error?: string; message?: string }>;
           const errorMsg =
-            err?.response?.data?.error ||
-            err?.response?.data?.message ||
+            axiosErr?.response?.data?.error ||
+            axiosErr?.response?.data?.message ||
             'Đăng ký thất bại. Vui lòng thử lại sau!';
           message.error(errorMsg);
         },

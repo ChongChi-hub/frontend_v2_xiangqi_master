@@ -13,32 +13,32 @@ export const QuickMatchBanner: React.FC<QuickMatchBannerProps> = ({
   onCancelMatch,
   isSearchingExternal = false,
 }) => {
-  const [isSearching, setIsSearching] = useState(isSearchingExternal);
+  const [internalSearching, setInternalSearching] = useState(false);
   const [searchSeconds, setSearchSeconds] = useState(0);
 
-  useEffect(() => {
-    setIsSearching(isSearchingExternal);
-  }, [isSearchingExternal]);
+  const isSearching = isSearchingExternal || internalSearching;
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isSearching) {
-      timer = setInterval(() => {
-        setSearchSeconds((prev) => prev + 1);
-      }, 1000);
-    } else {
-      setSearchSeconds(0);
+    if (!isSearching) {
+      return;
     }
-    return () => clearInterval(timer);
+    const timer = setInterval(() => {
+      setSearchSeconds((prev) => prev + 1);
+    }, 1000);
+
+    return () => {
+      clearInterval(timer);
+      setSearchSeconds(0);
+    };
   }, [isSearching]);
 
   const handleToggleMatchmaking = () => {
     if (isSearching) {
-      setIsSearching(false);
+      setInternalSearching(false);
       message.info('Đã hủy tìm trận.');
       if (onCancelMatch) onCancelMatch();
     } else {
-      setIsSearching(true);
+      setInternalSearching(true);
       message.success('Đang tìm kiếm đối thủ PvP...');
       if (onFindMatch) onFindMatch();
     }

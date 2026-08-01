@@ -15,7 +15,7 @@ export const DashboardPage: React.FC = () => {
 
   const user = profileData?.user || authStoreUser;
   const username = user?.username || 'Kỳ Thủ';
-  const eloScore = user?.eloScore ?? (user as any)?.eloScore ?? 1850;
+  const eloScore = user?.eloScore ?? 1850;
 
   return (
     <div className="w-full min-h-screen bg-[#fcf9f8] text-[#1b1c1c] pb-16 md:pb-8">

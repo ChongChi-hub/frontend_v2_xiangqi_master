@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Lora", Georgia, serif;
+}
+
+@layer base {
+  :root {
+    --primary-espresso: #361e15;
+    --primary-espresso-hover: #26140e;
+    --bg-cream: #f7f5f0;
+    --card-cream: #efece6;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-cream);
+    color: #27272a;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, .font-serif {
+    font-family: 'Lora', Georgia, serif !important;
+  }
+}
+
+.xiangqi-master-bg {
+  background-color: #f7f5f0;
+  background-image: radial-gradient(#e5dfd5 1px, transparent 1px);
+  background-size: 28px 28px;
+}

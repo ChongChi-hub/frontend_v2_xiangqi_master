@@ -1,8 +1,9 @@
+/* eslint-disable react-refresh/only-export-components */
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { Spin } from 'antd';
 import AuthLayout from '@/layouts/AuthLayout';
 import MainLayout from '@/layouts/MainLayout';
+import LoadingFallback from '@/components/ui/LoadingFallback';
 
 // Lazy loading pages for performance optimization as mandated by best_practice.md
 const HomePage = lazy(() => import('@/pages/Home'));
@@ -10,13 +11,6 @@ const DashboardPage = lazy(() => import('@/pages/Dashboard'));
 const LoginPage = lazy(() => import('@/pages/Login'));
 const RegisterPage = lazy(() => import('@/pages/Register'));
 const PvePage = lazy(() => import('@/pages/PVE'));
-
-// Suspense fallback spinner
-const LoadingFallback = () => (
-  <div className="w-full h-screen flex items-center justify-center bg-[#fcf9f8]">
-    <Spin size="large" tip="Đang tải..." />
-  </div>
-);
 
 // Centralized Router Definition
 export const router = createBrowserRouter([

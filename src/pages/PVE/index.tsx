@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { message } from 'antd';
 import { Play } from 'lucide-react';
@@ -18,12 +18,6 @@ export const PvePage: React.FC = () => {
   const [boardType, setBoardType] = useState<BoardType>('wood');
   const [pieceStyle, setPieceStyle] = useState<PieceStyle>('classic');
   const [isStarting, setIsStarting] = useState(false);
-
-  useEffect(() => {
-    if (urlDifficulty) {
-      setDifficulty(urlDifficulty);
-    }
-  }, [urlDifficulty]);
 
   const handleStartGame = () => {
     setIsStarting(true);

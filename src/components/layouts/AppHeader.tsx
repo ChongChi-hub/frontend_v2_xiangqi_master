@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Users, Bell, User as UserIcon } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -23,9 +23,9 @@ export const AppHeader: React.FC = () => {
     <header className="flex justify-between items-center w-full px-4 sm:px-8 md:px-16 py-3 bg-[#fcf9f8]/90 backdrop-blur-md border-b border-[#d4c3be] md:pl-72 fixed top-0 left-0 z-40">
       {/* Left side: Mobile Brand vs Desktop Page Title */}
       <div className="md:hidden flex items-center gap-2">
-        <span className="font-serif text-xl font-bold text-[#442a22]">
+        <Link to="/home" className="font-serif text-xl font-bold text-[#442a22] hover:text-[#5d4037] transition-colors">
           Xiangqi Master
-        </span>
+        </Link>
       </div>
       <div className="hidden md:block">
         <h2 className="font-serif text-2xl font-bold text-[#442a22]">

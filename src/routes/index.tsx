@@ -20,40 +20,18 @@ const LoadingFallback = () => (
 
 // Centralized Router Definition
 export const router = createBrowserRouter([
-  // Main Application Layout (App Dashboard, PVE...)
+  // Auth Layout (Landing Page, Login, Register)
   {
-    element: <MainLayout />,
+    element: <AuthLayout />,
     children: [
       {
         path: '/',
         element: (
           <Suspense fallback={<LoadingFallback />}>
-            <DashboardPage />
+            <HomePage />
           </Suspense>
         ),
       },
-      {
-        path: '/dashboard',
-        element: (
-          <Suspense fallback={<LoadingFallback />}>
-            <DashboardPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: '/pve',
-        element: (
-          <Suspense fallback={<LoadingFallback />}>
-            <PvePage />
-          </Suspense>
-        ),
-      },
-    ],
-  },
-  // Auth Layout (Landing, Login, Register)
-  {
-    element: <AuthLayout />,
-    children: [
       {
         path: '/home',
         element: (
@@ -80,10 +58,32 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  // Fallback Wildcard Route
+  // Main Application Layout (App Dashboard, PVE...)
+  {
+    element: <MainLayout />,
+    children: [
+      {
+        path: '/dashboard',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <DashboardPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/pve',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <PvePage />
+          </Suspense>
+        ),
+      },
+    ],
+  },
+  // Fallback Wildcard Route -> Landing Page
   {
     path: '*',
-    element: <Navigate to="/dashboard" replace />,
+    element: <Navigate to="/home" replace />,
   },
 ]);
 

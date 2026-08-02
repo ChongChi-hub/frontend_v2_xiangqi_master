@@ -45,20 +45,27 @@ export const PvpPage: React.FC<PvpPageProps> = ({
   const { data: profileData } = useUserProfile();
   const { setActiveMatch, clearActiveMatch } = useMatchStore();
 
-  // Extract User ID & Username safely
-  const currentUserId =
-    (profileData as unknown as { userId?: string })?.userId ||
-    profileData?.user?.id ||
-    (profileData?.user as unknown as { userId?: string })?.userId ||
-    authUser?.id ||
-    (authUser as unknown as { userId?: string })?.userId ||
-    '';
+  // Extract User ID & Username safely, prioritizing active logged-in user from authStore
+  const currentUserId = useMemo(() => {
+    if (authUser?.id) return authUser.id;
+    if ((authUser as unknown as { userId?: string })?.userId) {
+      return (authUser as unknown as { userId?: string }).userId!;
+    }
+    if ((profileData as unknown as { userId?: string })?.userId) {
+      return (profileData as unknown as { userId?: string }).userId!;
+    }
+    if (profileData?.user?.id) return profileData.user.id;
+    return '';
+  }, [authUser, profileData]);
 
-  const currentUsername =
-    (profileData as unknown as { username?: string })?.username ||
-    profileData?.user?.username ||
-    authUser?.username ||
-    '';
+  const currentUsername = useMemo(() => {
+    if (authUser?.username) return authUser.username;
+    if ((profileData as unknown as { username?: string })?.username) {
+      return (profileData as unknown as { username?: string }).username!;
+    }
+    if (profileData?.user?.username) return profileData.user.username;
+    return '';
+  }, [authUser, profileData]);
 
   // Initial match data passed via router navigation state or prop override
   const routerMatchData = (initialMatchDataOverride || location.state) as MatchFoundData | null;
@@ -365,6 +372,33 @@ export const PvpPage: React.FC<PvpPageProps> = ({
 
       {/* Main Content Layout */}
       <div className="w-full space-y-6">
+        {/* Dynamic Turn Guidance Banner */}
+        <div
+          className={`w-full py-3.5 px-5 rounded-2xl border flex items-center justify-between shadow-xs transition-all ${
+            turn === playerSide
+              ? 'bg-emerald-50 border-emerald-300 text-emerald-950 ring-2 ring-emerald-400/40'
+              : 'bg-amber-50 border-amber-200 text-amber-950'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <span
+              className={`w-3.5 h-3.5 rounded-full ${
+                turn === playerSide ? 'bg-emerald-600 animate-ping' : 'bg-amber-500'
+              }`}
+            />
+            <span className="font-bold text-xs sm:text-sm font-serif">
+              {turn === playerSide
+                ? `🟢 ĐẾN LƯỢT BẠN (${playerSide === 'red' ? 'Phe Đỏ' : 'Phe Đen'})! Hãy chọn quân cờ ở phía dưới để di chuyển.`
+                : `⏳ ĐANG CHỜ ĐỐI THỦ (${turn === 'red' ? matchData.redUsername + ' - Phe Đỏ' : matchData.blackUsername + ' - Phe Đen'}) đi nước tiếp theo...`}
+            </span>
+          </div>
+          {turn === playerSide && (
+            <span className="text-[11px] font-extrabold uppercase px-3 py-1 bg-emerald-200 text-emerald-900 rounded-lg">
+              Lượt của bạn
+            </span>
+          )}
+        </div>
+
         {/* Match Header Information Card: Left is RED, Right is BLACK */}
         <div className="bg-white border border-[#d4c3be] rounded-2xl p-5 shadow-xs flex items-center justify-around gap-4 text-center">
           {/* Left Side: RED Player */}

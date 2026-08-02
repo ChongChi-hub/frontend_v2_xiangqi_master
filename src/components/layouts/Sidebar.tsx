@@ -81,7 +81,7 @@ export const Sidebar: React.FC = () => {
     },
     {
       label: 'Lịch sử',
-      path: '#history',
+      path: '/history',
       icon: <History className="w-5 h-5" />,
     },
     {

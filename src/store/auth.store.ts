@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { User } from '@/types/auth';
 import { AUTH_TOKEN_KEY, AUTH_USER_KEY } from '@/config/constants';
+import socketService from '@/services/socket.service';
 
 interface AuthState {
   user: User | null;
@@ -42,6 +43,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
     localStorage.setItem('authToken', token);
     localStorage.setItem('authUser', JSON.stringify(user));
+    socketService.disconnect(); // Clear active socket so new login authenticates properly
     set({ user, token, isAuthenticated: true });
   },
 
@@ -52,6 +54,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.removeItem('authUser');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    socketService.disconnect(); // Disconnect socket on logout
     set({ user: null, token: null, isAuthenticated: false });
   },
 }));

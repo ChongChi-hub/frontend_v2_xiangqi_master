@@ -27,17 +27,22 @@ export interface MatchEndedData {
 
 class SocketService {
   private socket: Socket | null = null;
+  private currentToken: string | null = null;
 
   public connect(): Socket {
     const token = useAuthStore.getState().token;
 
+    // Disconnect stale socket if token has changed (e.g. user logged out or switched accounts)
+    if (this.socket && this.currentToken !== token) {
+      console.log('[SocketService] Token changed or account switched. Disconnecting stale socket...');
+      this.disconnect();
+    }
+
     if (this.socket && this.socket.connected) {
-      if (token) {
-        this.socket.auth = { token };
-      }
       return this.socket;
     }
 
+    this.currentToken = token;
     this.socket = io(SOCKET_URL, {
       auth: { token },
       autoConnect: true,
@@ -47,7 +52,7 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('[SocketService] Connected to Xiangqi Server:', this.socket?.id);
+      console.log('[SocketService] Connected to Xiangqi Server with socket:', this.socket?.id);
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -67,8 +72,10 @@ class SocketService {
 
   public disconnect(): void {
     if (this.socket) {
+      console.log('[SocketService] Disconnecting socket...');
       this.socket.disconnect();
       this.socket = null;
+      this.currentToken = null;
     }
   }
 

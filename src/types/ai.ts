@@ -9,7 +9,7 @@ export type GameMode = 'practice' | 'ranked';
 
 export type BoardType = 'wood' | 'leather' | 'paper';
 
-export type PieceStyle = 'classic' | 'modern' | 'symbol';
+export type PieceStyle = 'classic' | 'modern';
 
 export interface AIDifficultyOption {
   id: AIDifficultyLevel;

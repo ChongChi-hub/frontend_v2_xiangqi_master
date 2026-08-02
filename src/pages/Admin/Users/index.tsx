@@ -71,9 +71,9 @@ const AdminUsers: React.FC = () => {
     },
   ];
 
-  const handleTableChange = (pagination: any) => {
-    setCurrentPage(pagination.current);
-    setPageSize(pagination.pageSize);
+  const handleTableChange = (pagination: { current?: number; pageSize?: number }) => {
+    if (pagination.current) setCurrentPage(pagination.current);
+    if (pagination.pageSize) setPageSize(pagination.pageSize);
   };
 
   return (

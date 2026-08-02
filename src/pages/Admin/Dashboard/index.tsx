@@ -31,7 +31,7 @@ const AdminDashboard: React.FC = () => {
     {
       title: 'Hạng',
       key: 'rank',
-      render: (_: any, __: any, index: number) => <span className="font-bold text-[#ba1a1a]">#{index + 1}</span>,
+      render: (_: unknown, __: unknown, index: number) => <span className="font-bold text-[#ba1a1a]">#{index + 1}</span>,
       width: 80,
     },
     {

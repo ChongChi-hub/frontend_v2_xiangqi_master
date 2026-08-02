@@ -36,7 +36,7 @@ export const Sidebar: React.FC = () => {
     },
     {
       label: 'Phòng riêng',
-      path: '#private-room',
+      path: '/rooms',
       icon: <Lock className="w-5 h-5" />,
     },
     {

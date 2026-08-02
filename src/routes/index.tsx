@@ -13,6 +13,8 @@ const DashboardPage = lazy(() => import('@/pages/Dashboard'));
 const LoginPage = lazy(() => import('@/pages/Login'));
 const RegisterPage = lazy(() => import('@/pages/Register'));
 const PvePage = lazy(() => import('@/pages/PVE'));
+const RoomsPage = lazy(() => import('@/pages/Rooms'));
+const PvpPage = lazy(() => import('@/pages/PVP'));
 
 // Admin Pages
 const AdminDashboardPage = lazy(() => import('@/pages/Admin/Dashboard'));
@@ -60,7 +62,7 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  // Main Application Layout (App Dashboard, PVE...)
+  // Main Application Layout (App Dashboard, PVE, Rooms, PVP...)
   {
     element: <MainLayout />,
     children: [
@@ -77,6 +79,22 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingFallback />}>
             <PvePage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/rooms',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <RoomsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/pvp/:matchId',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <PvpPage />
           </Suspense>
         ),
       },

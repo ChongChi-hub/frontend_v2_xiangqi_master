@@ -55,7 +55,7 @@ export const QuickMatchBanner: React.FC<QuickMatchBannerProps> = ({
       <button
         type="button"
         onClick={handleToggleMatchmaking}
-        className={`w-full group rounded-xl p-8 flex flex-col items-center justify-center gap-3 transition-all duration-300 transform active:scale-[0.99] shadow-md border cursor-pointer ${
+        className={`w-full group rounded-2xl p-8 flex flex-col items-center justify-center gap-3 transition-all duration-300 transform active:scale-[0.99] shadow-md border cursor-pointer ${
           isSearching
             ? 'bg-[#ba1a1a] hover:bg-[#93000a] text-white border-[#ba1a1a] animate-pulse'
             : 'bg-[#5d4037] hover:bg-[#442a22] text-[#ffffff] border-[#442a22]'

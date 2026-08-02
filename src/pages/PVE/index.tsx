@@ -226,25 +226,42 @@ export const PvePage: React.FC = () => {
     }
   };
 
-  // Handle Undo Move (reverts 2 moves: Player + AI)
+  // Handle Undo Move (reverts both player move and bot move)
   const handleUndo = () => {
-    if (fenHistory.length <= 2 || isAiThinking) return;
+    if (isAiThinking) return;
 
-    const newFenHistory = fenHistory.slice(0, fenHistory.length - 2);
-    const newMoveHistory = moveHistory.slice(0, moveHistory.length - 2);
+    // If it's player's turn and at least 2 moves were played, revert 2 moves (Bot + Player)
+    // Otherwise revert 1 move
+    const stepsToRevert = fenHistory.length > 2 ? 2 : (fenHistory.length > 1 ? 1 : 0);
+
+    if (stepsToRevert === 0) {
+      message.info('Không thể đi lại thêm nữa!');
+      return;
+    }
+
+    const newFenHistory = fenHistory.slice(0, fenHistory.length - stepsToRevert);
+    const newMoveHistory = moveHistory.slice(0, moveHistory.length - stepsToRevert);
 
     const prevFen = newFenHistory[newFenHistory.length - 1];
     const { board } = fenToBoard(prevFen);
 
+    const prevLastMove =
+      newMoveHistory.length > 0
+        ? {
+            from: newMoveHistory[newMoveHistory.length - 1].from,
+            to: newMoveHistory[newMoveHistory.length - 1].to,
+          }
+        : null;
+
     setFenHistory(newFenHistory);
     setMoveHistory(newMoveHistory);
     setBoardState(board);
-    setTurn('red');
+    setTurn(playerSide);
     setSelectedPos(null);
     setValidMoves([]);
-    setLastMove(null);
+    setLastMove(prevLastMove);
     setHintMove(null);
-    message.success('Đã đi lại 1 nước!');
+    message.success('Đã hoàn tác nước đi!');
   };
 
   // Handle Restart Match

@@ -7,7 +7,8 @@ interface BoardSettingsProps {
   playerSide: 'red' | 'black';
   onSelectBoard: (board: BoardType) => void;
   onSelectPieceStyle?: (style: PieceStyle) => void;
-  onSelectSide: (side: 'red' | 'black') => void;
+  onSelectSide?: (side: 'red' | 'black') => void;
+  hideSideSelection?: boolean;
 }
 
 export const BoardSettings: React.FC<BoardSettingsProps> = ({
@@ -17,6 +18,7 @@ export const BoardSettings: React.FC<BoardSettingsProps> = ({
   onSelectBoard,
   onSelectPieceStyle,
   onSelectSide,
+  hideSideSelection = false,
 }) => {
   return (
     <section className="space-y-4">
@@ -125,49 +127,51 @@ export const BoardSettings: React.FC<BoardSettingsProps> = ({
           </div>
         </div>
 
-        {/* Side Selection */}
-        <div className="space-y-2 border-t border-[#f0eded] pt-4">
-          <p className="text-sm font-bold text-[#442a22] font-serif">Chọn phe (Bắt đầu lại)</p>
-          <div className="flex items-center gap-6">
-            <button
-              type="button"
-              onClick={() => onSelectSide('red')}
-              className={`flex flex-col items-center gap-1.5 cursor-pointer transition-all ${
-                playerSide === 'red' ? 'opacity-100 scale-105' : 'opacity-60 hover:opacity-100'
-              }`}
-            >
-              <div
-                className={`w-12 h-12 rounded-full border-2 flex items-center justify-center bg-[#ffffff] text-[#ba1a1a] font-serif text-xl shadow-sm ${
-                  playerSide === 'red' ? 'border-[#442a22] ring-2 ring-[#442a22]/20' : 'border-[#d4c3be]'
+        {/* Side Selection - Only shown in PVE vs Bot */}
+        {!hideSideSelection && onSelectSide && (
+          <div className="space-y-2 border-t border-[#f0eded] pt-4">
+            <p className="text-sm font-bold text-[#442a22] font-serif">Chọn phe (Bắt đầu lại)</p>
+            <div className="flex items-center gap-6">
+              <button
+                type="button"
+                onClick={() => onSelectSide('red')}
+                className={`flex flex-col items-center gap-1.5 cursor-pointer transition-all ${
+                  playerSide === 'red' ? 'opacity-100 scale-105' : 'opacity-60 hover:opacity-100'
                 }`}
               >
-                帥
-              </div>
-              <span className={`text-xs ${playerSide === 'red' ? 'font-bold text-[#442a22]' : 'text-[#504441]'}`}>
-                Cầm Đỏ (Đi trước)
-              </span>
-            </button>
+                <div
+                  className={`w-12 h-12 rounded-full border-2 flex items-center justify-center bg-[#ffffff] text-[#ba1a1a] font-serif text-xl shadow-sm ${
+                    playerSide === 'red' ? 'border-[#442a22] ring-2 ring-[#442a22]/20' : 'border-[#d4c3be]'
+                  }`}
+                >
+                  帥
+                </div>
+                <span className={`text-xs ${playerSide === 'red' ? 'font-bold text-[#442a22]' : 'text-[#504441]'}`}>
+                  Cầm Đỏ (Đi trước)
+                </span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => onSelectSide('black')}
-              className={`flex flex-col items-center gap-1.5 cursor-pointer transition-all ${
-                playerSide === 'black' ? 'opacity-100 scale-105' : 'opacity-60 hover:opacity-100'
-              }`}
-            >
-              <div
-                className={`w-12 h-12 rounded-full border-2 flex items-center justify-center bg-[#1b1c1c] text-[#ffffff] font-serif text-xl shadow-sm ${
-                  playerSide === 'black' ? 'border-[#442a22] ring-2 ring-[#442a22]/20' : 'border-[#d4c3be]'
+              <button
+                type="button"
+                onClick={() => onSelectSide('black')}
+                className={`flex flex-col items-center gap-1.5 cursor-pointer transition-all ${
+                  playerSide === 'black' ? 'opacity-100 scale-105' : 'opacity-60 hover:opacity-100'
                 }`}
               >
-                將
-              </div>
-              <span className={`text-xs ${playerSide === 'black' ? 'font-bold text-[#442a22]' : 'text-[#504441]'}`}>
-                Cầm Đen (Đi sau)
-              </span>
-            </button>
+                <div
+                  className={`w-12 h-12 rounded-full border-2 flex items-center justify-center bg-[#1b1c1c] text-[#ffffff] font-serif text-xl shadow-sm ${
+                    playerSide === 'black' ? 'border-[#442a22] ring-2 ring-[#442a22]/20' : 'border-[#d4c3be]'
+                  }`}
+                >
+                  將
+                </div>
+                <span className={`text-xs ${playerSide === 'black' ? 'font-bold text-[#442a22]' : 'text-[#504441]'}`}>
+                  Cầm Đen (Đi sau)
+                </span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </section>
   );

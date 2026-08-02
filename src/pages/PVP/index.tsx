@@ -37,8 +37,9 @@ export const PvpPage: React.FC = () => {
 
   // Extract User ID safely across all backend payload schemas
   const currentUserId =
-    profileData?.user?.id ||
     (profileData as unknown as { userId?: string })?.userId ||
+    profileData?.user?.id ||
+    (profileData?.user as unknown as { userId?: string })?.userId ||
     authUser?.id ||
     (authUser as unknown as { userId?: string })?.userId ||
     '';
@@ -65,11 +66,11 @@ export const PvpPage: React.FC = () => {
   const [autoExitSeconds, setAutoExitSeconds] = useState<number | null>(null);
 
   // Player side determination (Red vs Black)
-  const isRedPlayer = matchData.redPlayerId
+  const isRedPlayer = matchData.redPlayerId && currentUserId
     ? matchData.redPlayerId === currentUserId
-    : matchData.blackPlayerId
+    : matchData.blackPlayerId && currentUserId
     ? matchData.blackPlayerId !== currentUserId
-    : true; // Default Red
+    : true; // Default Red if undetermined
 
   const playerSide: 'red' | 'black' = isRedPlayer ? 'red' : 'black';
 
@@ -208,7 +209,8 @@ export const PvpPage: React.FC = () => {
 
     // Only allow moving on your turn
     if (turn !== playerSide) {
-      message.warning('Đang là lượt đi của đối thủ!');
+      const activePlayerName = turn === 'red' ? matchData.redUsername : matchData.blackUsername;
+      message.warning(`Đang là lượt đi của ${activePlayerName} (${turn === 'red' ? 'Phe Đỏ' : 'Phe Đen'})!`);
       return;
     }
 
@@ -384,7 +386,7 @@ export const PvpPage: React.FC = () => {
             />
           </div>
 
-          {/* Right Column: Move History & Board Settings */}
+          {/* Right Column: Move History & Board Settings (Hide side selection in PvP mode) */}
           <div className="lg:col-span-5 space-y-6">
             <MoveHistory history={moveHistory} />
 
@@ -394,7 +396,7 @@ export const PvpPage: React.FC = () => {
               playerSide={playerSide}
               onSelectBoard={(b) => setBoardType(b)}
               onSelectPieceStyle={(s) => setPieceStyle(s)}
-              onSelectSide={() => {}}
+              hideSideSelection={true}
             />
           </div>
         </div>

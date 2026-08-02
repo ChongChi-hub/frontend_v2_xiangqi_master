@@ -57,10 +57,10 @@ export const LoginPage: React.FC = () => {
             if (res.user.role === 'ADMIN') {
               navigate('/admin/dashboard');
             } else {
-              navigate('/dashboard');
+              navigate('/home');
             }
           } else {
-            navigate('/dashboard');
+            navigate('/home');
           }
         },
         onError: (err: Error) => {

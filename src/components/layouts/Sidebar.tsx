@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Modal, message } from 'antd';
-import { Gamepad2, Cpu, Lock, History, Trophy, LogOut, Users, Swords, Brain } from 'lucide-react';
+import { Gamepad2, Cpu, Lock, History, Trophy, LogOut, Users, Swords, Brain, User as UserIcon } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useMatchStore } from '@/store/match.store';
 import socketService from '@/services/socket.service';
@@ -89,6 +89,11 @@ export const Sidebar: React.FC = () => {
       path: '#leaderboard',
       icon: <Trophy className="w-5 h-5" />,
     },
+    {
+      label: 'Hồ sơ',
+      path: '/profile',
+      icon: <UserIcon className="w-5 h-5" />,
+    },
   ];
 
   const adminNavItems = [
@@ -156,7 +161,7 @@ export const Sidebar: React.FC = () => {
       <div className="pt-4 border-t border-[#d4c3be] space-y-2">
         <div className="flex items-center gap-3 px-2">
           <div className="w-10 h-10 rounded-full border-2 border-[#442a22] overflow-hidden shrink-0 bg-white shadow-xs">
-            <img src={defaultAvatar} alt={username} className="w-full h-full object-cover" />
+            <img src={user?.avatarUrl || defaultAvatar} alt={username} className="w-full h-full object-cover" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-sans text-sm font-bold text-[#442a22] truncate">{username}</p>

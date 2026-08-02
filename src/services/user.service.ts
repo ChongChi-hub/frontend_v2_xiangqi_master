@@ -33,6 +33,21 @@ export const userService = {
     const response = await apiClient.post<{ message: string; reward: number }>('/users/pve-match', data);
     return response.data;
   },
+  
+  /**
+   * Upload Avatar
+   */
+  async uploadAvatar(file: File): Promise<{ message: string; avatarUrl: string }> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    
+    const response = await apiClient.post<{ message: string; avatarUrl: string }>('/users/upload-avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
 };
 
 export default userService;

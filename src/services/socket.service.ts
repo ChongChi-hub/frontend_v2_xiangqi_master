@@ -55,11 +55,11 @@ class SocketService {
       console.log('[SocketService] Connected to Xiangqi Server with socket:', this.socket?.id);
     });
 
-    this.socket.on('disconnect', (reason) => {
-      console.log('[SocketService] Disconnected:', reason);
+    this.socket.on('disconnect', (reason: string) => {
+      console.log('🔌 Socket disconnected:', reason);
     });
 
-    this.socket.on('connect_error', (error) => {
+    this.socket.on('connect_error', (error: Error) => {
       console.error('[SocketService] Connection Error:', error);
     });
 

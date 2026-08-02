@@ -8,6 +8,9 @@ export interface UserProfile {
   drawMatches: number;
   role: 'PLAYER' | 'ADMIN';
   createdAt: string;
+  avatarUrl?: string;
+  totalMatches?: number;
+  winRate?: number;
 }
 
 export interface LeaderboardItem {

@@ -45,7 +45,9 @@ export const PvpPage: React.FC = () => {
   const initialMatchData = location.state as {
     matchId?: string;
     redPlayerId?: string;
+    redUsername?: string;
     blackPlayerId?: string;
+    blackUsername?: string;
     fen?: string;
   } | null;
 
@@ -60,6 +62,15 @@ export const PvpPage: React.FC = () => {
     : true; // Default Red if undetermined
 
   const playerSide: 'red' | 'black' = isRedPlayer ? 'red' : 'black';
+
+  // Display Usernames for Both Players
+  const redDisplayUsername =
+    initialMatchData?.redUsername ||
+    (isRedPlayer ? currentUsername : 'Kỳ Thủ Đỏ');
+
+  const blackDisplayUsername =
+    initialMatchData?.blackUsername ||
+    (!isRedPlayer ? currentUsername : 'Kỳ Thủ Đen');
 
   // Board settings
   const [boardType, setBoardType] = useState<BoardType>('wood');
@@ -263,7 +274,7 @@ export const PvpPage: React.FC = () => {
 
       {/* Main Content Layout */}
       <main className="max-w-[1400px] mx-auto w-full px-4 sm:px-8 md:px-16 py-6 space-y-6">
-        {/* Match Header Information Card */}
+        {/* Match Header Information Card with Exact Usernames */}
         <div className="bg-white border border-[#d4c3be] rounded-2xl p-5 shadow-xs flex items-center justify-around gap-4 text-center">
           {/* Player Red */}
           <div className="flex items-center gap-3">
@@ -273,7 +284,7 @@ export const PvpPage: React.FC = () => {
             <div className="text-left">
               <span className="block text-xs font-bold text-red-800 font-serif">BÊN ĐỎ (Đi trước)</span>
               <span className="text-sm font-bold text-[#442a22]">
-                {isRedPlayer ? `${currentUsername} (Bạn)` : 'Đối thủ Đỏ'}
+                {redDisplayUsername}
               </span>
             </div>
           </div>
@@ -296,7 +307,7 @@ export const PvpPage: React.FC = () => {
             <div className="text-right">
               <span className="block text-xs font-bold text-stone-900 font-serif">BÊN ĐEN (Đi sau)</span>
               <span className="text-sm font-bold text-[#442a22]">
-                {!isRedPlayer ? `${currentUsername} (Bạn)` : 'Đối thủ Đen'}
+                {blackDisplayUsername}
               </span>
             </div>
             <div className="w-10 h-10 rounded-full bg-stone-900 border border-stone-900 flex items-center justify-center text-white font-bold">
@@ -307,7 +318,7 @@ export const PvpPage: React.FC = () => {
 
         {/* Board Arena */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column: Xiangqi Board */}
+          {/* Left Column: Xiangqi Board (Oriented for playerSide) */}
           <div className="lg:col-span-7 space-y-6">
             <XiangqiBoard
               board={boardState}
@@ -318,6 +329,7 @@ export const PvpPage: React.FC = () => {
               onSquareClick={handleSquareClick}
               boardType={boardType}
               pieceStyle={pieceStyle}
+              playerSide={playerSide}
             />
 
             <BoardControls

@@ -8,7 +8,9 @@ const SOCKET_URL = import.meta.env.VITE_API_BASE_URL
 export interface MatchFoundData {
   matchId: string;
   redPlayerId: string;
+  redUsername?: string;
   blackPlayerId: string;
+  blackUsername?: string;
   fen: string;
 }
 

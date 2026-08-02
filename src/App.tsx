@@ -1,18 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConfigProvider } from 'antd';
 import viVN from 'antd/locale/vi_VN';
 import router from '@/routes';
-import { useAuthStore } from '@/store/auth.store';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 export function App() {
-  useEffect(() => {
-    // Xóa toàn bộ token và đưa trạng thái về chưa đăng nhập khi chạy ứng dụng
-    useAuthStore.getState().logout();
-  }, []);
-
   const [queryClient] = useState(
     () =>
       new QueryClient({

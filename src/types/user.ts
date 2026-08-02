@@ -16,6 +16,7 @@ export interface UserProfile {
 export interface LeaderboardItem {
   id: string;
   username: string;
+  avatarUrl?: string;
   eloScore: number;
   winMatches: number;
   loseMatches: number;

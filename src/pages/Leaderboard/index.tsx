@@ -52,7 +52,7 @@ const LeaderboardPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full border border-[#d4c3be] overflow-hidden bg-white shrink-0">
               <img 
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHDRcOs7ncvcOBUMISVy1a_NpuPcNcRO4kuyUvrqPAGmZd3FAt-6EHm48k72xsNwSIeEEYn92-ZMMeC-z9Zp0Zm2VMtHAEyz1slxIsyLxx4P_NEUikiFKRYJu84IrxDWPxNU2XZ0YtNb6y1oTmZVrm63FDlxF0SImne4yPrm9Rsg_infXqFLwuNGHZHRlIznVuYoC-_zR-5upV2XSKEU_5SxCeB0c_mqwfTZQcKDBf2S_A-5KTzzTv" 
+                src={record.avatarUrl || "https://res.cloudinary.com/znkrqbvm/image/upload/v1785675573/xiangqi_avatars/vlbrdpdmurh7mwtmqbxt.png"} 
                 alt={record.username} 
                 className="w-full h-full object-cover"
               />
@@ -80,8 +80,11 @@ const LeaderboardPage: React.FC = () => {
       key: 'winRate',
       align: 'center' as const,
       render: (_: any, record: LeaderboardItem) => {
-        const total = record.winMatches + record.loseMatches + record.drawMatches;
-        const winRate = total > 0 ? (record.winMatches / total) * 100 : 0;
+        const winMatches = record.winMatches || 0;
+        const loseMatches = record.loseMatches || 0;
+        const drawMatches = record.drawMatches || 0;
+        const total = winMatches + loseMatches + drawMatches;
+        const winRate = total > 0 ? (winMatches / total) * 100 : 0;
         return <span className="text-[#504441]">{Math.round(winRate)}%</span>;
       },
     },
@@ -89,11 +92,12 @@ const LeaderboardPage: React.FC = () => {
       title: 'Số Trận',
       key: 'totalMatches',
       align: 'center' as const,
-      render: (_: any, record: LeaderboardItem) => (
-        <span className="text-[#504441]">
-          {record.winMatches + record.loseMatches + record.drawMatches}
-        </span>
-      ),
+      render: (_: any, record: LeaderboardItem) => {
+        const winMatches = record.winMatches || 0;
+        const loseMatches = record.loseMatches || 0;
+        const drawMatches = record.drawMatches || 0;
+        return <span className="text-[#504441]">{winMatches + loseMatches + drawMatches}</span>;
+      },
     },
   ];
 
@@ -116,7 +120,7 @@ const LeaderboardPage: React.FC = () => {
               rank === 2 ? 'border-slate-300' : 'border-amber-600'
             } overflow-hidden bg-white relative z-0`}>
               <img 
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHDRcOs7ncvcOBUMISVy1a_NpuPcNcRO4kuyUvrqPAGmZd3FAt-6EHm48k72xsNwSIeEEYn92-ZMMeC-z9Zp0Zm2VMtHAEyz1slxIsyLxx4P_NEUikiFKRYJu84IrxDWPxNU2XZ0YtNb6y1oTmZVrm63FDlxF0SImne4yPrm9Rsg_infXqFLwuNGHZHRlIznVuYoC-_zR-5upV2XSKEU_5SxCeB0c_mqwfTZQcKDBf2S_A-5KTzzTv" 
+                src={item.avatarUrl || "https://res.cloudinary.com/znkrqbvm/image/upload/v1785675573/xiangqi_avatars/vlbrdpdmurh7mwtmqbxt.png"} 
                 alt={item.username} 
                 className="w-full h-full object-cover"
               />

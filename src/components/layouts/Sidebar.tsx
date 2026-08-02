@@ -59,7 +59,7 @@ export const Sidebar: React.FC = () => {
   const username = user?.username || 'Kỳ Thủ';
   const title = getTitleFromElo(user?.eloScore ?? 1850);
   const defaultAvatar =
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuAVLUPKIj0KjoGE_BZ9ByvSZYW22KVP3THcqzHjv3JxYambXnO8AcIBkMKh5RgxEdUA1XXkZ-wysXcPQYg3NSicB-lluggL3sJo-fZOaqcnRMUXODnfdsXlUbSHXQyMXFKo891lakr9vQzq15IXV_jUfjD57mkQ7W9nTcdmA6l1dr-x7rdgdLx4xwQYI0Hpx0FgBy1JDPjAfbdIwh8XDB2sRGldGY9pj1Z1UHJT05uxV2HA1TVP6Cm2';
+    user?.avatarUrl || 'https://res.cloudinary.com/znkrqbvm/image/upload/v1785675573/xiangqi_avatars/vlbrdpdmurh7mwtmqbxt.png';
 
   const isAdminRoute = location.pathname.startsWith('/admin');
 

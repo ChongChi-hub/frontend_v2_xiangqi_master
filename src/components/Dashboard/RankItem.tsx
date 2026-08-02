@@ -61,7 +61,7 @@ export const RankItem: React.FC<RankItemProps> = ({ item, rank, isCurrentUser })
   };
 
   const defaultAvatar =
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuDHDRcOs7ncvcOBUMISVy1a_NpuPcNcRO4kuyUvrqPAGmZd3FAt-6EHm48k72xsNwSIeEEYn92-ZMMeC-z9Zp0Zm2VMtHAEyz1slxIsyLxx4P_NEUikiFKRYJu84IrxDWPxNU2XZ0YtNb6y1oTmZVrm63FDlxF0SImne4yPrm9Rsg_infXqFLwuNGHZHRlIznVuYoC-_zR-5upV2XSKEU_5SxCeB0c_mqwfTZQcKDBf2S_A-5KTzzTv';
+    item.avatarUrl || 'https://res.cloudinary.com/znkrqbvm/image/upload/v1785675573/xiangqi_avatars/vlbrdpdmurh7mwtmqbxt.png';
 
   return (
     <motion.div

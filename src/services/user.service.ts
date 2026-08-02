@@ -46,7 +46,13 @@ export const userService = {
     const formData = new FormData();
     formData.append('avatar', file);
     
-    const response = await apiClient.post<{ message: string; avatarUrl: string }>('/users/upload-avatar', formData);
+    const response = await apiClient.post<{ message: string; avatarUrl: string }>('/users/upload-avatar', formData, {
+      transformRequest: [(data, headers) => {
+        // Xoá Content-Type mặc định để trình duyệt tự động set multipart/form-data KÈM boundary
+        delete headers['Content-Type'];
+        return data;
+      }],
+    });
     return response.data;
   },
 };

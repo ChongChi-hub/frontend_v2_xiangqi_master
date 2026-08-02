@@ -54,6 +54,14 @@ export interface PaginatedResponse<T> {
   };
 }
 
+export interface BotSetting {
+  id: string;
+  difficulty: string;
+  depth: number;
+  movetime: number;
+  updatedAt: string;
+}
+
 export const adminService = {
   getDashboardStats: async () => {
     const response = await api.get<{ success: boolean; data: DashboardStats }>('/admin/stats');
@@ -72,5 +80,16 @@ export const adminService = {
       matches: response.data.data.matches as MatchItem[],
       pagination: response.data.data.pagination
     };
+  },
+  getBotSettings: async () => {
+    const response = await api.get<{ success: boolean; data: BotSetting[] }>('/admin/bot-settings');
+    return response.data.data;
+  },
+  updateBotSetting: async (difficulty: string, depth: number, movetime: number) => {
+    const response = await api.put<{ success: boolean; data: BotSetting }>(`/admin/bot-settings/${difficulty}`, {
+      depth,
+      movetime
+    });
+    return response.data.data;
   }
 };

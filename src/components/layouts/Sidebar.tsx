@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
 import { getTitleFromElo } from '@/types/user';
-import { Gamepad2, Cpu, Lock, History, Trophy, LogOut, Users } from 'lucide-react';
+import { Gamepad2, Cpu, Lock, History, Trophy, LogOut, Users, Swords, Brain } from 'lucide-react';
 import { message } from 'antd';
 
 export const Sidebar: React.FC = () => {
@@ -65,7 +65,12 @@ export const Sidebar: React.FC = () => {
     {
       label: 'Trận đấu',
       path: '/admin/matches',
-      icon: <History className="w-5 h-5" />,
+      icon: <Swords className="w-5 h-5" />,
+    },
+    {
+      label: 'Cấu hình AI',
+      path: '/admin/bot-settings',
+      icon: <Brain className="w-5 h-5" />,
     }
   ];
 

@@ -18,6 +18,7 @@ const PvePage = lazy(() => import('@/pages/PVE'));
 const AdminDashboardPage = lazy(() => import('@/pages/Admin/Dashboard'));
 const AdminUsersPage = lazy(() => import('@/pages/Admin/Users'));
 const AdminMatchesPage = lazy(() => import('@/pages/Admin/Matches'));
+const AdminBotSettingsPage = lazy(() => import('@/pages/Admin/BotSettings'));
 
 // Centralized Router Definition
 export const router = createBrowserRouter([
@@ -106,6 +107,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingFallback />}>
             <AdminMatchesPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/admin/bot-settings',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <AdminBotSettingsPage />
           </Suspense>
         ),
       },

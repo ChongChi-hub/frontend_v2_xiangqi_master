@@ -6,8 +6,13 @@ export const userService = {
    * Lấy thông tin cá nhân của người chơi (yêu cầu Token)
    */
   async getUserProfile(): Promise<{ user: UserProfile }> {
-    const response = await apiClient.get<{ user: UserProfile }>('/users/profile');
-    return response.data;
+    const response = await apiClient.get<any>('/users/profile');
+    return {
+      user: {
+        id: response.data.userId,
+        ...response.data,
+      },
+    };
   },
 
   /**

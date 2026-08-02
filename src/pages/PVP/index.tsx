@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Modal, message } from 'antd';
-import { Swords, LogOut, Shield, User as UserIcon } from 'lucide-react';
+import { Swords, LogOut, User as UserIcon, Clock, Handshake, Flag, Trophy } from 'lucide-react';
 import {
   type BoardGrid,
   type Position,
@@ -11,11 +11,11 @@ import {
   boardToFen,
   getPieceColor,
   getLegalMoves,
+  checkGameState,
   formatUciMove,
   parseUciMove,
 } from '@/utils/xiangqi';
 import { XiangqiBoard } from '@/components/PVE/XiangqiBoard';
-import { BoardControls } from '@/components/PVE/BoardControls';
 import { MoveHistory } from '@/components/PVE/MoveHistory';
 import { BoardSettings } from '@/components/PVE/BoardSettings';
 import socketService, {
@@ -45,7 +45,6 @@ export const PvpPage: React.FC<PvpPageProps> = ({
   const { data: profileData } = useUserProfile();
   const { setActiveMatch, clearActiveMatch } = useMatchStore();
 
-  // Extract User ID & Username safely, prioritizing active logged-in user from authStore
   const currentUserId = useMemo(() => {
     if (authUser?.id) return authUser.id;
     if ((authUser as unknown as { userId?: string })?.userId) {
@@ -67,11 +66,9 @@ export const PvpPage: React.FC<PvpPageProps> = ({
     return '';
   }, [authUser, profileData]);
 
-  // Initial match data passed via router navigation state or prop override
   const routerMatchData = (initialMatchDataOverride || location.state) as MatchFoundData | null;
   const matchId = paramMatchId || routerMatchData?.matchId || '';
 
-  // Real-time Match Details State
   const [matchData, setMatchData] = useState<{
     redPlayerId: string;
     redUsername: string;
@@ -86,51 +83,32 @@ export const PvpPage: React.FC<PvpPageProps> = ({
     fen: routerMatchData?.fen || INITIAL_FEN,
   });
 
-  // Auto-redirect timer state
   const [autoExitSeconds, setAutoExitSeconds] = useState<number | null>(null);
 
-  // Failsafe side determination: Check BOTH userId AND username!
   const isRedPlayer = useMemo(() => {
-    if (matchData.redPlayerId && currentUserId && matchData.redPlayerId === currentUserId) {
-      return true;
-    }
-    if (matchData.redUsername && currentUsername && matchData.redUsername === currentUsername) {
-      return true;
-    }
-    if (matchData.blackPlayerId && currentUserId && matchData.blackPlayerId === currentUserId) {
-      return false;
-    }
-    if (matchData.blackUsername && currentUsername && matchData.blackUsername === currentUsername) {
-      return false;
-    }
-    return true; // Default Red
-  }, [
-    matchData.redPlayerId,
-    matchData.redUsername,
-    matchData.blackPlayerId,
-    matchData.blackUsername,
-    currentUserId,
-    currentUsername,
-  ]);
+    if (matchData.redPlayerId && currentUserId && matchData.redPlayerId === currentUserId) return true;
+    if (matchData.redUsername && currentUsername && matchData.redUsername === currentUsername) return true;
+    if (matchData.blackPlayerId && currentUserId && matchData.blackPlayerId === currentUserId) return false;
+    if (matchData.blackUsername && currentUsername && matchData.blackUsername === currentUsername) return false;
+    return true;
+  }, [matchData, currentUserId, currentUsername]);
 
   const playerSide: 'red' | 'black' = isRedPlayer ? 'red' : 'black';
 
-  // Board display settings
   const [boardType, setBoardType] = useState<BoardType>('wood');
   const [pieceStyle, setPieceStyle] = useState<PieceStyle>('classic');
 
-  // Interactive Game State
-  const [boardState, setBoardState] = useState<BoardGrid>(
-    () => fenToBoard(matchData.fen).board
-  );
+  const [boardState, setBoardState] = useState<BoardGrid>(() => fenToBoard(matchData.fen).board);
   const [turn, setTurn] = useState<'red' | 'black'>('red');
   const [selectedPos, setSelectedPos] = useState<Position | null>(null);
   const [validMoves, setValidMoves] = useState<Position[]>([]);
   const [lastMove, setLastMove] = useState<{ from: Position; to: Position } | null>(null);
   const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
-  const [gameResult, setGameResult] = useState<string | null>(null);
+  const [gameResult, setGameResult] = useState<'VICTORY' | 'DEFEAT' | 'DRAW' | null>(null);
+  
+  // Track opponent draw offer
+  const [drawOfferReceived, setDrawOfferReceived] = useState<boolean>(false);
 
-  // Apply opponent's move reliably without closure stale state
   const applyOpponentMove = useCallback((moveStr: string, newFen: string) => {
     const { board, turn: nextTurn } = fenToBoard(newFen);
     const parsed = parseUciMove(moveStr);
@@ -146,20 +124,11 @@ export const PvpPage: React.FC<PvpPageProps> = ({
 
       const piece = board[to.row][to.col];
       if (piece) {
-        setMoveHistory((prev) => [
-          ...prev,
-          {
-            from,
-            to,
-            piece,
-            moveStr,
-          },
-        ]);
+        setMoveHistory((prev) => [...prev, { from, to, piece, moveStr }]);
       }
     }
   }, []);
 
-  // Connect socket room & listen for match info, moves & match end
   useEffect(() => {
     if (!matchId) return;
 
@@ -168,7 +137,6 @@ export const PvpPage: React.FC<PvpPageProps> = ({
     socketService.joinRoom(roomId);
     socketService.getMatchInfo(matchId);
 
-    // Register active match in global store
     setActiveMatch({
       matchId,
       redPlayerId: matchData.redPlayerId,
@@ -178,15 +146,7 @@ export const PvpPage: React.FC<PvpPageProps> = ({
       fen: matchData.fen,
     });
 
-    const handleMatchInfo = (info: {
-      matchId: string;
-      redPlayerId: string;
-      redUsername: string;
-      blackPlayerId: string;
-      blackUsername: string;
-      fen: string;
-    }) => {
-      console.log('[PvpPage] Received match_info:', info);
+    const handleMatchInfo = (info: any) => {
       setMatchData({
         redPlayerId: info.redPlayerId,
         redUsername: info.redUsername,
@@ -207,55 +167,86 @@ export const PvpPage: React.FC<PvpPageProps> = ({
     };
 
     const handleMatchEnded = (data: MatchEndedData) => {
-      const isWinner = data.winnerId === currentUserId;
-      setGameResult(isWinner ? 'VICTORY' : 'DEFEAT');
-      setAutoExitSeconds(4); // Start 4-second auto exit countdown
-
-      if (isWinner) {
-        message.success('Chúc mừng! Đối thủ đã rời trận/nhận thua. Bạn giành chiến thắng!');
+      if (data.reason === 'draw_agreed' || data.reason === 'stalemate' || !data.winnerId) {
+        setGameResult('DRAW');
+        setAutoExitSeconds(6);
+        message.info('Ván đấu kết thúc hòa.');
       } else {
-        message.info('Ván đấu kết thúc. Bạn đã thoát trận hoặc thua cuộc.');
+        const isWinner = data.winnerId === currentUserId;
+        setGameResult(isWinner ? 'VICTORY' : 'DEFEAT');
+        setAutoExitSeconds(6);
+
+        if (isWinner) {
+          message.success('Chúc mừng! Bạn giành chiến thắng!');
+        } else {
+          message.info('Ván đấu kết thúc. Bạn đã thua cuộc.');
+        }
       }
+    };
+    
+    const handleDrawOffered = (data: { offeredBy: string }) => {
+      if (data.offeredBy !== currentUserId) {
+        setDrawOfferReceived(true);
+      }
+    };
+    
+    const handleDrawDeclined = () => {
+      message.info('Đối thủ đã từ chối lời cầu hòa.');
     };
 
     socket.on('match_info', handleMatchInfo);
     socket.on('move_made', handleMoveMade);
     socket.on('match_ended', handleMatchEnded);
+    socket.on('draw_offered', handleDrawOffered);
+    socket.on('draw_declined', handleDrawDeclined);
 
     return () => {
       socket.off('match_info', handleMatchInfo);
       socket.off('move_made', handleMoveMade);
       socket.off('match_ended', handleMatchEnded);
+      socket.off('draw_offered', handleDrawOffered);
+      socket.off('draw_declined', handleDrawDeclined);
       socketService.leaveRoom(roomId);
     };
   }, [matchId, currentUserId, applyOpponentMove, setActiveMatch, matchData.redPlayerId, matchData.redUsername, matchData.blackPlayerId, matchData.blackUsername, matchData.fen]);
 
-  // Auto exit countdown effect
+  // Handle Draw Offer Modal Effect
+  useEffect(() => {
+    if (drawOfferReceived && !gameResult) {
+      Modal.confirm({
+        title: 'Đối thủ cầu hòa',
+        content: `Đối thủ đã đề nghị một kết quả hòa cho ván đấu này. Bạn có đồng ý không?`,
+        okText: 'Đồng ý',
+        cancelText: 'Từ chối',
+        onOk: () => {
+          socketService.respondDraw(matchId, true);
+          setDrawOfferReceived(false);
+        },
+        onCancel: () => {
+          socketService.respondDraw(matchId, false);
+          setDrawOfferReceived(false);
+        }
+      });
+    }
+  }, [drawOfferReceived, matchId, gameResult]);
+
   useEffect(() => {
     if (autoExitSeconds === null) return;
-
     if (autoExitSeconds <= 0) {
       clearActiveMatch();
-      if (onMatchEndComplete) {
-        onMatchEndComplete();
-      } else {
-        navigate('/dashboard');
-      }
+      if (onMatchEndComplete) onMatchEndComplete();
+      else navigate('/dashboard');
       return;
     }
-
     const timer = setTimeout(() => {
       setAutoExitSeconds((prev) => (prev !== null ? prev - 1 : null));
     }, 1000);
-
     return () => clearTimeout(timer);
   }, [autoExitSeconds, navigate, clearActiveMatch, onMatchEndComplete]);
 
-  // Handle Square Clicks
   const handleSquareClick = (pos: Position) => {
     if (gameResult) return;
 
-    // Only allow moving on your turn
     if (turn !== playerSide) {
       const activePlayerName = turn === 'red' ? matchData.redUsername : matchData.blackUsername;
       message.warning(`Đang là lượt đi của ${activePlayerName} (${turn === 'red' ? 'Phe Đỏ' : 'Phe Đen'})!`);
@@ -267,8 +258,7 @@ export const PvpPage: React.FC<PvpPageProps> = ({
 
     if (clickedColor === turn) {
       setSelectedPos(pos);
-      const moves = getLegalMoves(boardState, pos);
-      setValidMoves(moves);
+      setValidMoves(getLegalMoves(boardState, pos));
       return;
     }
 
@@ -296,18 +286,18 @@ export const PvpPage: React.FC<PvpPageProps> = ({
         setSelectedPos(null);
         setValidMoves([]);
 
-        const moveRec: MoveRecord = {
-          from,
-          to,
-          piece: movingPiece,
-          captured: capturedPiece,
-          moveStr,
-        };
-        setMoveHistory((prev) => [...prev, moveRec]);
+        setMoveHistory((prev) => [...prev, { from, to, piece: movingPiece, captured: capturedPiece, moveStr }]);
 
-        // Send move to server over socket
         if (matchId) {
           socketService.sendMove(matchId, nextFen, moveStr);
+        }
+        
+        // Local Checkmate Verification
+        const gameState = checkGameState(nextBoard, nextTurn);
+        if (gameState === 'CHECKMATE' || gameState === 'KING_CAPTURED' || gameState === 'STALEMATE') {
+          if (matchId) {
+            socketService.sendGameEnded(matchId, gameState);
+          }
         }
       } else {
         setSelectedPos(null);
@@ -316,204 +306,172 @@ export const PvpPage: React.FC<PvpPageProps> = ({
     }
   };
 
-  // Resign match with confirmation modal
   const handleConfirmResign = () => {
     Modal.confirm({
-      title: 'Xác nhận đầu hàng & thoát trận?',
-      content:
-        'Bạn có chắc chắn muốn nhận thua và thoát khỏi trận đấu xếp hạng này không? Điểm ELO của bạn sẽ bị trừ 30 điểm.',
-      okText: 'Nhận thua & Thoát',
-      cancelText: 'Tiếp tục đấu',
+      title: 'Xác nhận Đầu Hàng?',
+      content: 'Bạn sẽ lập tức bị xử thua trong ván đấu này.',
+      okText: 'Đầu Hàng',
+      cancelText: 'Hủy',
       okButtonProps: { danger: true },
       onOk: () => {
-        if (matchId) {
-          socketService.resignMatch(matchId);
-        }
-        clearActiveMatch();
-        message.info('Đã chịu thua trận đấu.');
-        if (onMatchEndComplete) {
-          onMatchEndComplete();
-        } else {
-          navigate('/dashboard');
-        }
+        if (matchId) socketService.resignMatch(matchId);
       },
     });
   };
 
+  const handleOfferDraw = () => {
+    if (matchId) {
+      socketService.offerDraw(matchId);
+      message.success('Đã gửi lời cầu hòa đến đối thủ.');
+    }
+  };
+
+  const redUsername = matchData.redUsername;
+  const blackUsername = matchData.blackUsername;
+
   return (
-    <div className="w-full bg-[#fcf9f8] text-[#1b1c1c]">
+    <div className="w-full min-h-screen bg-[#fcf9f8] text-[#1b1c1c] pb-16 md:pb-8">
       {/* Top Banner Header */}
-      <div className="w-full bg-[#f6f3f2] border-b border-[#d4c3be] px-4 sm:px-8 py-4 shadow-xs rounded-2xl mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#ba1a1a] flex items-center justify-center text-white">
-              <Swords className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-serif font-bold text-[#442a22]">
-                Trận Đấu Trực Tuyến PvP (Sảnh Đấu)
-              </h1>
-              <p className="text-xs text-[#504441]">
-                Mã trận: <span className="font-mono font-bold">{matchId?.substring(0, 10)}...</span>
-              </p>
-            </div>
+      <div className="w-full bg-[#f6f3f2] border-b border-[#d4c3be] px-4 sm:px-8 md:px-16 py-5 shadow-xs">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-serif font-bold text-[#442a22] flex items-center gap-3">
+              <Swords className="w-7 h-7 text-[#ba1a1a]" />
+              Trận Đấu Xếp Hạng
+            </h1>
+            <p className="text-xs sm:text-sm text-[#504441] mt-1 font-sans">
+              Mã trận: <span className="font-mono font-bold">{matchId?.substring(0, 10)}...</span>
+            </p>
           </div>
-
-          <button
-            type="button"
-            onClick={handleConfirmResign}
-            className="px-4 py-2 bg-[#fdf2f2] hover:bg-[#fde8e8] text-[#b71c1c] font-bold text-xs rounded-xl border border-[#f8b4b4] flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>THOÁT TRẬN / NHẬN THUA</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content Layout */}
-      <div className="w-full space-y-6">
-        {/* Dynamic Turn Guidance Banner */}
-        <div
-          className={`w-full py-3.5 px-5 rounded-2xl border flex items-center justify-between shadow-xs transition-all ${
-            turn === playerSide
-              ? 'bg-emerald-50 border-emerald-300 text-emerald-950 ring-2 ring-emerald-400/40'
-              : 'bg-amber-50 border-amber-200 text-amber-950'
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <span
-              className={`w-3.5 h-3.5 rounded-full ${
-                turn === playerSide ? 'bg-emerald-600 animate-ping' : 'bg-amber-500'
-              }`}
-            />
-            <span className="font-bold text-xs sm:text-sm font-serif">
-              {turn === playerSide
-                ? `🟢 ĐẾN LƯỢT BẠN (${playerSide === 'red' ? 'Phe Đỏ' : 'Phe Đen'})! Hãy chọn quân cờ ở phía dưới để di chuyển.`
-                : `⏳ ĐANG CHỜ ĐỐI THỦ (${turn === 'red' ? matchData.redUsername + ' - Phe Đỏ' : matchData.blackUsername + ' - Phe Đen'}) đi nước tiếp theo...`}
-            </span>
-          </div>
-          {turn === playerSide && (
-            <span className="text-[11px] font-extrabold uppercase px-3 py-1 bg-emerald-200 text-emerald-900 rounded-lg">
-              Lượt của bạn
-            </span>
-          )}
-        </div>
-
-        {/* Match Header Information Card: Left is RED, Right is BLACK */}
-        <div className="bg-white border border-[#d4c3be] rounded-2xl p-5 shadow-xs flex items-center justify-around gap-4 text-center">
-          {/* Left Side: RED Player */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-red-100 border border-red-800 flex items-center justify-center text-red-800 font-bold">
-              <UserIcon className="w-5 h-5" />
-            </div>
-            <div className="text-left">
-              <span className="block text-xs font-bold text-red-800 font-serif">BÊN ĐỎ (Đi trước)</span>
-              <span className="text-sm font-bold text-[#442a22]">
-                {matchData.redUsername} {isRedPlayer ? '⭐️ (Bạn)' : ''}
-              </span>
-            </div>
-          </div>
-
-          {/* Turn Status Badge */}
-          <div className="px-4 py-2 bg-[#fcf9f8] border border-[#d4c3be] rounded-xl flex flex-col items-center">
-            <span className="text-[11px] font-bold text-[#504441]">LƯỢT ĐI HIỆN TẠI</span>
-            <span
-              className={`text-sm font-black font-serif uppercase tracking-wider ${
-                turn === 'red' ? 'text-red-700' : 'text-stone-900'
-              }`}
-            >
-              {turn === 'red' ? '🔴 BÊN ĐỎ' : '⚫ BÊN ĐEN'}
-              {turn === playerSide ? ' (Lượt của bạn)' : ' (Lượt đối thủ)'}
-            </span>
-          </div>
-
-          {/* Right Side: BLACK Player */}
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <span className="block text-xs font-bold text-stone-900 font-serif">BÊN ĐEN (Đi sau)</span>
-              <span className="text-sm font-bold text-[#442a22]">
-                {matchData.blackUsername} {!isRedPlayer ? '⭐️ (Bạn)' : ''}
-              </span>
-            </div>
-            <div className="w-10 h-10 rounded-full bg-stone-900 border border-stone-900 flex items-center justify-center text-white font-bold">
-              <UserIcon className="w-5 h-5" />
-            </div>
-          </div>
-        </div>
-
-        {/* Board Arena */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column: Xiangqi Board (Oriented for playerSide) */}
-          <div className="lg:col-span-7 space-y-6">
-            <XiangqiBoard
-              board={boardState}
-              selectedPos={selectedPos}
-              validMoves={validMoves}
-              lastMove={lastMove}
-              hintMove={null}
-              onSquareClick={handleSquareClick}
-              boardType={boardType}
-              pieceStyle={pieceStyle}
-              playerSide={playerSide}
-            />
-
-            <BoardControls
-              onUndo={() => message.info('Không thể xin đi lại trong trận đấu xếp hạng trực tuyến!')}
-              onHint={() => message.info('Không thể dùng gợi ý AI trong trận đấu người với người!')}
-              onResign={handleConfirmResign}
-              onRestart={() => message.info('Trận đấu đang diễn ra')}
-              canUndo={false}
-            />
-          </div>
-
-          {/* Right Column: Move History & Board Settings (Hide side selection in PvP mode) */}
-          <div className="lg:col-span-5 space-y-6">
-            <MoveHistory history={moveHistory} />
-
-            <BoardSettings
-              selectedBoard={boardType}
-              selectedPieceStyle={pieceStyle}
-              playerSide={playerSide}
-              onSelectBoard={(b) => setBoardType(b)}
-              onSelectPieceStyle={(s) => setPieceStyle(s)}
-              hideSideSelection={true}
-            />
+          
+          <div className="flex items-center gap-4">
+            <button onClick={handleConfirmResign} className="px-4 py-2 bg-white hover:bg-stone-100 text-[#b71c1c] font-bold text-xs rounded-xl border border-[#d4c3be] flex items-center gap-1.5 cursor-pointer shadow-xs">
+              <LogOut className="w-4 h-4" /> <span>THOÁT TRẬN</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Result Modal with Auto-Exit Countdown */}
+      <main className="max-w-[1400px] mx-auto w-full px-4 sm:px-8 md:px-16 py-6 space-y-8">
+        <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+          
+          {/* Turn Indicator with Players (Consistent with Private Room) */}
+          <div className="bg-white border border-[#d4c3be] rounded-2xl p-6 shadow-xs flex justify-between items-center px-4 sm:px-12">
+            {/* Red Player */}
+            <div className={`flex flex-col items-center transition-all duration-300 ${turn === 'red' ? 'opacity-100 scale-110' : 'opacity-40 grayscale'}`}>
+              <div className="w-12 h-12 rounded-full bg-red-100 text-red-700 flex items-center justify-center mb-2 shadow-sm border border-red-200">
+                <UserIcon className="w-6 h-6" />
+              </div>
+              <span className="text-red-700 font-bold text-sm">{redUsername}</span>
+              {playerSide === 'red' && <span className="text-[10px] bg-red-700 text-white px-2 py-0.5 rounded-full mt-1">BẠN</span>}
+            </div>
+            
+            <div className="flex flex-col items-center">
+              <div className="px-6 py-2 bg-[#fcf9f8] border border-[#d4c3be] rounded-xl text-center shadow-inner">
+                <span className="text-[11px] font-bold text-[#504441] block mb-1">LƯỢT ĐI HIỆN TẠI</span>
+                <span className={`text-base font-black font-serif uppercase ${turn === 'red' ? 'text-red-700' : 'text-stone-900'}`}>
+                  {turn === 'red' ? '🔴 BÊN ĐỎ' : '⚫ BÊN ĐEN'}
+                </span>
+              </div>
+              <div className="mt-3 text-xs font-bold text-stone-500 font-mono flex items-center gap-1.5 bg-stone-100 px-3 py-1.5 rounded-lg border border-stone-200">
+                <Clock className="w-3.5 h-3.5 text-stone-600" /> Vô hạn
+              </div>
+            </div>
+
+            {/* Black Player */}
+            <div className={`flex flex-col items-center transition-all duration-300 ${turn === 'black' ? 'opacity-100 scale-110' : 'opacity-40 grayscale'}`}>
+              <div className="w-12 h-12 rounded-full bg-stone-200 text-stone-900 flex items-center justify-center mb-2 shadow-sm border border-stone-300">
+                <UserIcon className="w-6 h-6" />
+              </div>
+              <span className="text-stone-900 font-bold text-sm">{blackUsername}</span>
+              {playerSide === 'black' && <span className="text-[10px] bg-stone-900 text-white px-2 py-0.5 rounded-full mt-1">BẠN</span>}
+            </div>
+          </div>
+
+          {/* Main Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="lg:col-span-7 space-y-6">
+              <XiangqiBoard
+                board={boardState}
+                selectedPos={selectedPos}
+                validMoves={validMoves}
+                lastMove={lastMove}
+                hintMove={null}
+                onSquareClick={handleSquareClick}
+                boardType={boardType}
+                pieceStyle={pieceStyle}
+                playerSide={playerSide}
+              />
+            </div>
+            <div className="lg:col-span-5 space-y-6">
+              <MoveHistory history={moveHistory} />
+              
+              {/* Controls - Same as Private Room */}
+              <div className="w-full grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={handleOfferDraw}
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-[#ffffff] hover:bg-[#f4efe6] text-[#442a22] font-bold text-sm rounded-xl border border-[#d4c3be] shadow-xs active:scale-95 transition-all cursor-pointer"
+                >
+                  <Handshake className="w-4 h-4" />
+                  <span>Cầu Hòa</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmResign}
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-[#fdf2f2] hover:bg-[#fde8e8] text-[#b71c1c] font-bold text-sm rounded-xl border border-[#f8b4b4] shadow-xs active:scale-95 transition-all cursor-pointer"
+                >
+                  <Flag className="w-4 h-4" />
+                  <span>Đầu Hàng</span>
+                </button>
+              </div>
+
+              <BoardSettings
+                selectedBoard={boardType}
+                selectedPieceStyle={pieceStyle}
+                playerSide={playerSide}
+                onSelectBoard={setBoardType}
+                onSelectPieceStyle={setPieceStyle}
+                hideSideSelection={true}
+              />
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Result Modal - Styled like Private Room's finish screen */}
       {gameResult && (
         <Modal
           open={!!gameResult}
           footer={null}
           closable={false}
           centered
-          width={400}
+          width={600}
         >
-          <div className="text-center py-4 space-y-4">
-            <div
-              className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${
-                gameResult === 'VICTORY'
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : 'bg-red-100 text-red-800'
-              }`}
-            >
-              <Shield className="w-8 h-8" />
+          <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+            <Trophy className={`w-20 h-20 mb-4 ${gameResult === 'VICTORY' ? 'text-amber-500' : gameResult === 'DEFEAT' ? 'text-stone-400' : 'text-emerald-500'}`} />
+            <h2 className="text-3xl font-black font-serif text-[#442a22] mb-2 uppercase">Kết Quả Ván Đấu</h2>
+            
+            <div className="mt-6 text-2xl font-bold">
+              {gameResult === 'VICTORY' ? (
+                <span className="text-emerald-600">🎉 Bạn đã chiến thắng!</span>
+              ) : gameResult === 'DEFEAT' ? (
+                <span className="text-red-600">Thật đáng tiếc, bạn đã thua.</span>
+              ) : (
+                <span className="text-amber-600">Ván đấu hòa!</span>
+              )}
             </div>
 
-            <h2 className="text-2xl font-serif font-bold text-[#442a22]">
-              {gameResult === 'VICTORY' ? 'CHIẾN THẮNG RỰC RỠ! 🎉' : 'BẠN ĐÃ THẤT BẠI'}
-            </h2>
-
-            <p className="text-xs text-[#504441]">
+            <p className="text-sm text-stone-600 mt-4">
               {gameResult === 'VICTORY'
-                ? 'Đối thủ đã thoát trận / nhận thua! Bạn giành chiến thắng và nhận +30 ELO!'
-                : 'Ván đấu đã kết thúc. Bạn bị trừ -30 ELO.'}
+                ? 'Tuyệt vời! Bạn nhận được điểm ELO đánh giá.'
+                : gameResult === 'DEFEAT'
+                ? 'Ván đấu kết thúc. Bạn bị trừ điểm ELO.'
+                : 'Hai bên bất phân thắng bại. Không thay đổi ELO.'}
             </p>
 
             {autoExitSeconds !== null && (
-              <p className="text-xs font-semibold text-emerald-700">
+              <p className="text-sm font-semibold text-[#442a22] mt-6 bg-[#fcf9f8] py-2 px-4 rounded-xl border border-[#d4c3be]">
                 Tự động về Sảnh Đấu sau {autoExitSeconds} giây...
               </p>
             )}
@@ -522,13 +480,10 @@ export const PvpPage: React.FC<PvpPageProps> = ({
               type="button"
               onClick={() => {
                 clearActiveMatch();
-                if (onMatchEndComplete) {
-                  onMatchEndComplete();
-                } else {
-                  navigate('/dashboard');
-                }
+                if (onMatchEndComplete) onMatchEndComplete();
+                else navigate('/dashboard');
               }}
-              className="w-full bg-[#361e15] hover:bg-[#26140e] text-white font-bold py-3 rounded-xl shadow-md cursor-pointer transition-all text-xs"
+              className="mt-8 w-full max-w-[250px] bg-[#361e15] hover:bg-[#26140e] text-white font-bold py-3.5 rounded-xl shadow-md cursor-pointer transition-all"
             >
               Trở về Sảnh Đấu Ngay
             </button>

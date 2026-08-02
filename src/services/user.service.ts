@@ -46,11 +46,7 @@ export const userService = {
     const formData = new FormData();
     formData.append('avatar', file);
     
-    const response = await apiClient.post<{ message: string; avatarUrl: string }>('/users/upload-avatar', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const response = await apiClient.post<{ message: string; avatarUrl: string }>('/users/upload-avatar', formData);
     return response.data;
   },
 };

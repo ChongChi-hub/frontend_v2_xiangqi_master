@@ -35,10 +35,10 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
 
   // Prioritize API profile user, fallback to auth store user, then fallback name
   const username = user?.username || authStoreUser?.username || 'Kỳ Thủ';
-  const eloScore = user?.eloScore ?? authStoreUser?.eloScore ?? 1850;
-  const winMatches = user?.winMatches ?? authStoreUser?.winMatches ?? 120;
-  const loseMatches = user?.loseMatches ?? authStoreUser?.loseMatches ?? 45;
-  const drawMatches = user?.drawMatches ?? authStoreUser?.drawMatches ?? 15;
+  const eloScore = user?.eloScore ?? authStoreUser?.eloScore ?? 1200;
+  const winMatches = user?.winMatches ?? authStoreUser?.winMatches ?? 0;
+  const loseMatches = user?.loseMatches ?? authStoreUser?.loseMatches ?? 0;
+  const drawMatches = user?.drawMatches ?? authStoreUser?.drawMatches ?? 0;
   const title = getTitleFromElo(eloScore);
 
   return (

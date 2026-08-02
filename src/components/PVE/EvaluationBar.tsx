@@ -5,12 +5,16 @@ import type { AIDifficultyLevel } from '@/types/ai';
 interface EvaluationBarProps {
   score: number;
   difficulty: AIDifficultyLevel;
+  playerSide: 'red' | 'black';
+  turn: 'red' | 'black';
   isThinking?: boolean;
 }
 
 export const EvaluationBar: React.FC<EvaluationBarProps> = ({
   score,
   difficulty,
+  playerSide,
+  turn,
   isThinking = false,
 }) => {
   // Score range mapping (-10.0 to +10.0 -> 0% to 100%)
@@ -54,6 +58,11 @@ export const EvaluationBar: React.FC<EvaluationBarProps> = ({
               Đang tính toán...
             </span>
           )}
+          {!isThinking && (
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-md text-white ${turn === 'red' ? 'bg-[#b71c1c]' : 'bg-[#1b1c1c]'}`}>
+              Lượt: {turn === 'red' ? 'Đỏ' : 'Đen'}
+            </span>
+          )}
           <span className="text-xs font-mono font-bold px-2.5 py-1 bg-[#442a22] text-white rounded-md">
             Score: {score > 0 ? `+${score.toFixed(2)}` : score.toFixed(2)}
           </span>
@@ -73,8 +82,12 @@ export const EvaluationBar: React.FC<EvaluationBarProps> = ({
       </div>
 
       <div className="flex justify-between text-[11px] font-semibold text-[#504441]">
-        <span className="text-red-700 font-bold">Người chơi (Đỏ): {redPercentage}%</span>
-        <span className="text-gray-900 font-bold">Pikafish (Đen): {100 - redPercentage}%</span>
+        <span className="text-red-700 font-bold">
+          {playerSide === 'red' ? 'Người chơi (Đỏ)' : 'Pikafish (Đỏ)'}: {redPercentage}%
+        </span>
+        <span className="text-gray-900 font-bold">
+          {playerSide === 'black' ? 'Người chơi (Đen)' : 'Pikafish (Đen)'}: {100 - redPercentage}%
+        </span>
       </div>
     </div>
   );

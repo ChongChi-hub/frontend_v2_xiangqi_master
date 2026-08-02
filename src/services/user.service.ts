@@ -19,6 +19,20 @@ export const userService = {
     });
     return response.data;
   },
+  /**
+   * Lưu kết quả trận đấu PVE
+   */
+  async savePveMatch(data: {
+    difficulty: string;
+    result: 'win' | 'lose' | 'draw';
+    playerSide: 'red' | 'black';
+    clientMatchId: string;
+    timeControl?: number;
+    initialFen?: string;
+  }): Promise<{ message: string; reward: number }> {
+    const response = await apiClient.post<{ message: string; reward: number }>('/users/pve-match', data);
+    return response.data;
+  },
 };
 
 export default userService;

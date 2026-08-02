@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { message } from 'antd';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUserProfile, useLeaderboard } from '@/hooks/useUser';
 import { useAuthStore } from '@/store/auth.store';
 import { useMatchStore } from '@/store/match.store';
@@ -11,8 +12,10 @@ import { LeaderboardSidebar } from '@/components/Dashboard/LeaderboardSidebar';
 import PvpPage from '@/pages/PVP';
 import socketService, { type MatchFoundData } from '@/services/socket.service';
 import { Gamepad2, Cpu, History, Trophy } from 'lucide-react';
+import { AUTH_TOKEN_KEY } from '@/config/constants';
 
 export const DashboardPage: React.FC = () => {
+  const queryClient = useQueryClient();
   const authStoreUser = useAuthStore((state) => state.user);
   const { data: profileData, isLoading: isProfileLoading } = useUserProfile();
   const { data: leaderboardData, isLoading: isLeaderboardLoading } = useLeaderboard();
@@ -52,6 +55,9 @@ export const DashboardPage: React.FC = () => {
             onMatchEndComplete={() => {
               setActiveMatchData(null);
               clearActiveMatch();
+              // Invalidate query to refetch updated ELO and match stats
+              queryClient.invalidateQueries({ queryKey: ['userProfile', localStorage.getItem(AUTH_TOKEN_KEY)] });
+              queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
             }}
           />
         ) : (

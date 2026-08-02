@@ -40,6 +40,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
   const loseMatches = user?.loseMatches ?? authStoreUser?.loseMatches ?? 0;
   const drawMatches = user?.drawMatches ?? authStoreUser?.drawMatches ?? 0;
   const title = getTitleFromElo(eloScore);
+  const avatarUrl = user?.avatarUrl || authStoreUser?.avatarUrl;
 
   return (
     <section className="bg-[#f6f3f2] border border-[#d4c3be] rounded-xl p-6 relative overflow-hidden shadow-xs">
@@ -47,7 +48,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
       <div className="absolute top-0 right-0 w-full h-full opacity-30 pointer-events-none bg-[radial-gradient(#d4c3be_0.5px,transparent_0.5px)] [background-size:24px_24px]" />
 
       <div className="flex flex-col md:flex-row items-center md:items-end gap-6 relative z-10">
-        <AvatarBadge size="xl" isOnline borderClass="border-[#442a22]" />
+        <AvatarBadge src={avatarUrl} size="xl" isOnline borderClass="border-[#442a22]" />
 
         <div className="flex-1 text-center md:text-left">
           <h3 className="text-2xl md:text-3xl font-serif font-bold text-[#442a22] mb-1">

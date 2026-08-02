@@ -52,6 +52,12 @@ const AdminUsers: React.FC = () => {
       render: (val: number) => <Text type="success">{val}</Text>,
     },
     {
+      title: 'Hoà',
+      dataIndex: 'drawMatches',
+      key: 'drawMatches',
+      render: (val: number) => <Text type="warning">{val}</Text>,
+    },
+    {
       title: 'Thua',
       dataIndex: 'loseMatches',
       key: 'loseMatches',

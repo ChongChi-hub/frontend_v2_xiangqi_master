@@ -139,10 +139,40 @@ class SocketService {
     }
   }
 
-  public sendPrivateMove(roomCode: string, fen: string, moveStr: string): void {
+  public sendPrivateMove(roomCode: string, fen: string, moveStr: string, nextTurn: 'red' | 'black'): void {
     if (this.socket) {
       console.log(`[SocketService] Emitting private_make_move for room ${roomCode}: ${moveStr}`);
-      this.socket.emit('private_make_move', { roomCode, fen, moveStr });
+      this.socket.emit('private_make_move', { roomCode, fen, moveStr, nextTurn });
+    }
+  }
+
+  public sendPrivateGameEnded(roomCode: string, winnerId: string | null, reason: string): void {
+    if (this.socket) {
+      this.socket.emit('private_game_ended', { roomCode, winnerId, reason });
+    }
+  }
+
+  public offerPrivateDraw(roomCode: string): void {
+    if (this.socket) {
+      this.socket.emit('offer_draw', { roomCode });
+    }
+  }
+
+  public respondPrivateDraw(roomCode: string, accept: boolean): void {
+    if (this.socket) {
+      this.socket.emit('respond_draw', { roomCode, accept });
+    }
+  }
+
+  public resignPrivateMatch(roomCode: string): void {
+    if (this.socket) {
+      this.socket.emit('resign_private_match', { roomCode });
+    }
+  }
+
+  public readyNextPrivateRound(roomCode: string): void {
+    if (this.socket) {
+      this.socket.emit('ready_next_round', { roomCode });
     }
   }
 

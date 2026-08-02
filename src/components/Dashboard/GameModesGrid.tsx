@@ -27,10 +27,7 @@ export const GameModesGrid: React.FC<GameModesGridProps> = ({ onStartPvp }) => {
       message.error('Mã phòng phải chứa ít nhất 4 ký tự!');
       return;
     }
-    message.loading({ content: `Đang kết nối vào phòng ${trimmed}...`, key: 'room_join' });
-    setTimeout(() => {
-      message.success({ content: `Đã kết nối phòng ${trimmed}`, key: 'room_join' });
-    }, 1000);
+    navigate(`/rooms?join=${trimmed}`);
   };
 
   return (

@@ -1,83 +1,79 @@
-export type PieceType = 'K' | 'A' | 'B' | 'N' | 'R' | 'C' | 'P' | 'k' | 'a' | 'b' | 'n' | 'r' | 'c' | 'p';
+// Types & Utilities for Xiangqi (Chinese Chess)
+
 export type PieceColor = 'red' | 'black';
 
+// Pieces representation:
+// Red: 'r_k' (King), 'r_a' (Advisor), 'r_b' (Elephant), 'r_n' (Knight), 'r_r' (Rook), 'r_c' (Cannon), 'r_p' (Pawn)
+// Black: 'b_k', 'b_a', 'b_b', 'b_n', 'b_r', 'b_c', 'b_p'
+export type PieceType = 'K' | 'A' | 'B' | 'N' | 'R' | 'C' | 'P';
+export type Piece = string; // e.g. 'r_k', 'b_p' or null
+
+export type BoardGrid = (Piece | null)[][];
+
 export interface Position {
-  row: number; // 0..9 (0 is top rank 9, 9 is bottom rank 0)
-  col: number; // 0..8 (0 is 'a', 8 is 'i')
+  row: number; // 0..9 (0 is top/Black home, 9 is bottom/Red home)
+  col: number; // 0..8
 }
 
 export interface MoveRecord {
   from: Position;
   to: Position;
-  piece: PieceType;
-  captured?: PieceType | null;
-  moveStr: string;
+  piece: Piece;
+  captured?: Piece | null;
+  moveStr: string; // UCI format e.g., "h2e2"
 }
 
-export type BoardGrid = (PieceType | null)[][];
-
+// Initial FEN for Xiangqi
 export const INITIAL_FEN = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1';
 
-export const getPieceColor = (piece: PieceType | null): PieceColor | null => {
-  if (!piece) return null;
-  return piece === piece.toUpperCase() ? 'red' : 'black';
+// Convert FEN character to internal piece string
+const charToPieceMap: Record<string, string> = {
+  R: 'r_r', N: 'r_n', B: 'r_b', A: 'r_a', K: 'r_k', C: 'r_c', P: 'r_p',
+  r: 'b_r', n: 'b_n', b: 'b_b', a: 'b_a', k: 'b_k', c: 'b_c', p: 'b_p',
 };
 
-export const getPieceName = (piece: PieceType | null): string => {
-  if (!piece) return '';
-  switch (piece) {
-    case 'K': return '帥';
-    case 'k': return '將';
-    case 'A': return '仕';
-    case 'a': return '士';
-    case 'B': return '相';
-    case 'b': return '象';
-    case 'N': return '傌';
-    case 'n': return '馬';
-    case 'R': return '俥';
-    case 'r': return '車';
-    case 'C': return '炮';
-    case 'c': return '包';
-    case 'P': return '兵';
-    case 'p': return '卒';
-    default: return '';
-  }
+// Convert internal piece string to FEN character
+const pieceToCharMap: Record<string, string> = {
+  r_r: 'R', r_n: 'N', r_b: 'B', r_a: 'A', r_k: 'K', r_c: 'C', r_p: 'P',
+  b_r: 'r', b_n: 'n', b_b: 'b', b_a: 'a', b_k: 'k', b_c: 'c', b_p: 'p',
 };
 
-// Convert FEN string to 10x9 2D Board grid
-export const fenToBoard = (fen: string): { board: BoardGrid; turn: PieceColor } => {
+// Helper: Parse FEN to BoardGrid
+export const fenToBoard = (fen: string = INITIAL_FEN): { board: BoardGrid; turn: PieceColor } => {
   const parts = fen.trim().split(/\s+/);
   const boardStr = parts[0] || 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR';
-  const turnStr = parts[1] || 'w';
+  const turnChar = parts[1] || 'w';
 
   const rows = boardStr.split('/');
-  const board: BoardGrid = Array.from({ length: 10 }, () => Array(9).fill(null));
+  const board: BoardGrid = Array(10)
+    .fill(null)
+    .map(() => Array(9).fill(null));
 
-  for (let r = 0; r < Math.min(10, rows.length); r++) {
-    const rowStr = rows[r];
+  for (let r = 0; r < 10; r++) {
+    const rowStr = rows[r] || '9';
     let c = 0;
     for (let i = 0; i < rowStr.length; i++) {
-      const char = rowStr[i];
-      if (/\d/.test(char)) {
-        c += parseInt(char, 10);
-      } else if (c < 9) {
-        board[r][c] = char as PieceType;
+      const ch = rowStr[i];
+      if (/\d/.test(ch)) {
+        c += parseInt(ch, 10);
+      } else {
+        board[r][c] = charToPieceMap[ch] || null;
         c++;
       }
     }
   }
 
-  const turn: PieceColor = turnStr === 'b' ? 'black' : 'red';
+  const turn: PieceColor = turnChar === 'w' || turnChar === 'r' ? 'red' : 'black';
   return { board, turn };
 };
 
-// Convert 10x9 2D Board grid to FEN string
+// Helper: Convert BoardGrid to FEN
 export const boardToFen = (board: BoardGrid, turn: PieceColor = 'red'): string => {
   const fenRows: string[] = [];
 
   for (let r = 0; r < 10; r++) {
-    let rowFen = '';
     let emptyCount = 0;
+    let rowFen = '';
 
     for (let c = 0; c < 9; c++) {
       const piece = board[r][c];
@@ -88,93 +84,133 @@ export const boardToFen = (board: BoardGrid, turn: PieceColor = 'red'): string =
           rowFen += emptyCount.toString();
           emptyCount = 0;
         }
-        rowFen += piece;
+        rowFen += pieceToCharMap[piece] || '';
       }
     }
+
     if (emptyCount > 0) {
       rowFen += emptyCount.toString();
     }
     fenRows.push(rowFen);
   }
 
-  const turnChar = turn === 'black' ? 'b' : 'w';
-  return `${fenRows.join('/')} ${turnChar} - - 0 1`;
+  const fenTurn = turn === 'red' ? 'w' : 'b';
+  return `${fenRows.join('/')} ${fenTurn} - - 0 1`;
 };
 
-// Convert Position to UCI string (e.g. {row: 7, col: 7} -> "h2")
-export const posToUciCoord = (pos: Position): string => {
-  const colChar = String.fromCharCode('a'.charCodeAt(0) + pos.col);
-  const rowChar = (9 - pos.row).toString();
-  return `${colChar}${rowChar}`;
+// Helper: Get Vietnamese display name of piece
+export const getPieceName = (piece: Piece | null): string => {
+  if (!piece) return '';
+  const type = piece.split('_')[1];
+  switch (type?.toUpperCase()) {
+    case 'K': return 'Tướng';
+    case 'A': return 'Sĩ';
+    case 'B': return 'Tượng';
+    case 'N': return 'Mã';
+    case 'R': return 'Xe';
+    case 'C': return 'Pháo';
+    case 'P': return 'Tốt';
+    default: return '';
+  }
 };
 
-// Convert UCI coord string (e.g. "h2") to Position
-export const uciCoordToPos = (coord: string): Position | null => {
-  if (coord.length < 2) return null;
-  const col = coord.charCodeAt(0) - 'a'.charCodeAt(0);
-  const row = 9 - parseInt(coord[1], 10);
-  if (col < 0 || col > 8 || row < 0 || row > 9 || isNaN(row)) return null;
-  return { row, col };
+// Helper: Extract color of a piece
+export const getPieceColor = (piece: Piece | null): PieceColor | null => {
+  if (!piece) return null;
+  if (piece.startsWith('r_')) return 'red';
+  if (piece.startsWith('b_')) return 'black';
+  return null;
 };
 
-// Convert full UCI move string (e.g. "h2e2") to Position pair
-export const parseUciMove = (moveStr: string): { from: Position; to: Position } | null => {
-  if (!moveStr || moveStr.length < 4) return null;
-  const from = uciCoordToPos(moveStr.substring(0, 2));
-  const to = uciCoordToPos(moveStr.substring(2, 4));
-  if (!from || !to) return null;
-  return { from, to };
+// Helper: Extract type of piece ('K', 'A', 'B', 'N', 'R', 'C', 'P')
+export const getPieceType = (piece: Piece | null): PieceType | null => {
+  if (!piece) return null;
+  const t = piece.split('_')[1];
+  return t ? (t.toUpperCase() as PieceType) : null;
 };
 
-// Convert Position pair to UCI move string (e.g. "h2e2")
-export const formatUciMove = (from: Position, to: Position): string => {
-  return `${posToUciCoord(from)}${posToUciCoord(to)}`;
+// Helper: Check inside board
+export const isInsideBoard = (r: number, c: number): boolean => {
+  return r >= 0 && r <= 9 && c >= 0 && c <= 8;
 };
 
-// Legal move generator for Xiangqi
-export const getLegalMoves = (board: BoardGrid, pos: Position): Position[] => {
+// Find King position
+export const findKing = (board: BoardGrid, color: PieceColor): Position | null => {
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 9; c++) {
+      const piece = board[r][c];
+      if (piece && getPieceColor(piece) === color && getPieceType(piece) === 'K') {
+        return { row: r, col: c };
+      }
+    }
+  }
+  return null;
+};
+
+// Check if Kings are facing each other with no pieces between them (Flying Kings)
+export const areKingsFacing = (board: BoardGrid): boolean => {
+  const redKing = findKing(board, 'red');
+  const blackKing = findKing(board, 'black');
+
+  if (!redKing || !blackKing) return false;
+  if (redKing.col !== blackKing.col) return false;
+
+  const minR = Math.min(redKing.row, blackKing.row);
+  const maxR = Math.max(redKing.row, blackKing.row);
+
+  for (let r = minR + 1; r < maxR; r++) {
+    if (board[r][redKing.col] !== null) {
+      return false; // Piece blocking
+    }
+  }
+
+  return true; // Flying Kings violation!
+};
+
+// Pseudo-legal move generator
+export const getPseudoLegalMoves = (board: BoardGrid, pos: Position): Position[] => {
   const piece = board[pos.row][pos.col];
   if (!piece) return [];
 
   const color = getPieceColor(piece);
+  const type = getPieceType(piece);
+  if (!color || !type) return [];
+
   const moves: Position[] = [];
   const { row: r, col: c } = pos;
 
-  const isInsideBoard = (nr: number, nc: number) => nr >= 0 && nr <= 9 && nc >= 0 && nc <= 8;
   const isOpponentOrEmpty = (nr: number, nc: number) => {
-    if (!isInsideBoard(nr, nc)) return false;
     const destPiece = board[nr][nc];
-    return !destPiece || getPieceColor(destPiece) !== color;
+    if (!destPiece) return true;
+    return getPieceColor(destPiece) !== color;
   };
 
-  const isPalace = (nr: number, nc: number, pColor: PieceColor) => {
-    if (nc < 3 || nc > 5) return false;
-    if (pColor === 'red') return nr >= 7 && nr <= 9;
-    return nr >= 0 && nr <= 2;
-  };
-
-  const upperPiece = piece.toUpperCase();
-
-  switch (upperPiece) {
+  switch (type) {
     case 'K': {
-      // King: 1 step orthogonal in Palace
+      // Palace boundaries: Red [7..9, 3..5], Black [0..2, 3..5]
+      const minR = color === 'red' ? 7 : 0;
+      const maxR = color === 'red' ? 9 : 2;
       const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
       for (const [dr, dc] of dirs) {
         const nr = r + dr;
         const nc = c + dc;
-        if (color && isPalace(nr, nc, color) && isOpponentOrEmpty(nr, nc)) {
+        if (nr >= minR && nr <= maxR && nc >= 3 && nc <= 5 && isOpponentOrEmpty(nr, nc)) {
           moves.push({ row: nr, col: nc });
         }
       }
       break;
     }
     case 'A': {
-      // Advisor: 1 step diagonal in Palace
+      // Palace diagonals: Red [7..9, 3..5], Black [0..2, 3..5]
+      const minR = color === 'red' ? 7 : 0;
+      const maxR = color === 'red' ? 9 : 2;
       const dirs = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+
       for (const [dr, dc] of dirs) {
         const nr = r + dr;
         const nc = c + dc;
-        if (color && isPalace(nr, nc, color) && isOpponentOrEmpty(nr, nc)) {
+        if (nr >= minR && nr <= maxR && nc >= 3 && nc <= 5 && isOpponentOrEmpty(nr, nc)) {
           moves.push({ row: nr, col: nc });
         }
       }
@@ -190,7 +226,6 @@ export const getLegalMoves = (board: BoardGrid, pos: Position): Position[] => {
         const eyeC = c + dc / 2;
 
         if (isInsideBoard(nr, nc) && !board[eyeR][eyeC] && isOpponentOrEmpty(nr, nc)) {
-          // Check river
           if (color === 'red' && nr >= 5) {
             moves.push({ row: nr, col: nc });
           } else if (color === 'black' && nr <= 4) {
@@ -240,7 +275,7 @@ export const getLegalMoves = (board: BoardGrid, pos: Position): Position[] => {
             if (getPieceColor(destPiece) !== color) {
               moves.push({ row: nr, col: nc });
             }
-            break; // Stop at first piece
+            break;
           }
           step++;
         }
@@ -264,14 +299,14 @@ export const getLegalMoves = (board: BoardGrid, pos: Position): Position[] => {
             if (!destPiece) {
               moves.push({ row: nr, col: nc });
             } else {
-              screenFound = true; // First piece act as screen
+              screenFound = true;
             }
           } else {
             if (destPiece) {
               if (getPieceColor(destPiece) !== color) {
                 moves.push({ row: nr, col: nc });
               }
-              break; // Stop after first piece behind screen
+              break;
             }
           }
           step++;
@@ -284,13 +319,11 @@ export const getLegalMoves = (board: BoardGrid, pos: Position): Position[] => {
       const forwardDr = color === 'red' ? -1 : 1;
       const passedRiver = color === 'red' ? r <= 4 : r >= 5;
 
-      // Forward move
       const nr = r + forwardDr;
       if (isInsideBoard(nr, c) && isOpponentOrEmpty(nr, c)) {
         moves.push({ row: nr, col: c });
       }
 
-      // Sideways moves if across river
       if (passedRiver) {
         for (const dc of [-1, 1]) {
           const nc = c + dc;
@@ -304,4 +337,117 @@ export const getLegalMoves = (board: BoardGrid, pos: Position): Position[] => {
   }
 
   return moves;
+};
+
+// Check if King of given color is currently under attack
+export const isKingInCheck = (board: BoardGrid, color: PieceColor): boolean => {
+  const kingPos = findKing(board, color);
+  if (!kingPos) return true; // King captured!
+
+  const opponentColor: PieceColor = color === 'red' ? 'black' : 'red';
+
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 9; c++) {
+      const piece = board[r][c];
+      if (piece && getPieceColor(piece) === opponentColor) {
+        const moves = getPseudoLegalMoves(board, { row: r, col: c });
+        if (moves.some((m) => m.row === kingPos.row && m.col === kingPos.col)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+};
+
+// Strict legal move generator (Filters out moves that expose King or cause Flying Kings)
+export const getLegalMoves = (board: BoardGrid, pos: Position): Position[] => {
+  const piece = board[pos.row][pos.col];
+  if (!piece) return [];
+
+  const color = getPieceColor(piece);
+  if (!color) return [];
+
+  const pseudoMoves = getPseudoLegalMoves(board, pos);
+  const strictMoves: Position[] = [];
+
+  for (const move of pseudoMoves) {
+    // Simulate move
+    const testBoard = board.map((row) => [...row]);
+    testBoard[move.row][move.col] = piece;
+    testBoard[pos.row][pos.col] = null;
+
+    // Check if King is safe & Kings are not facing each other
+    if (!areKingsFacing(testBoard) && !isKingInCheck(testBoard, color)) {
+      strictMoves.push(move);
+    }
+  }
+
+  return strictMoves;
+};
+
+// Check if color has ANY strict legal moves left
+export const hasAnyLegalMoves = (board: BoardGrid, color: PieceColor): boolean => {
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 9; c++) {
+      const piece = board[r][c];
+      if (piece && getPieceColor(piece) === color) {
+        const moves = getLegalMoves(board, { row: r, col: c });
+        if (moves.length > 0) return true;
+      }
+    }
+  }
+  return false;
+};
+
+// Check Game Over State: returns 'CHECKMATE' | 'STALEMATE' | 'KING_CAPTURED' | null
+export const checkGameState = (
+  board: BoardGrid,
+  currentTurn: PieceColor
+): 'CHECKMATE' | 'STALEMATE' | 'KING_CAPTURED' | null => {
+  const redKing = findKing(board, 'red');
+  const blackKing = findKing(board, 'black');
+
+  if (!redKing || !blackKing) {
+    return 'KING_CAPTURED';
+  }
+
+  const inCheck = isKingInCheck(board, currentTurn);
+  const canMove = hasAnyLegalMoves(board, currentTurn);
+
+  if (!canMove) {
+    return inCheck ? 'CHECKMATE' : 'STALEMATE';
+  }
+
+  return null;
+};
+
+// UCI notation conversion helpers: "h2e2" <-> Position
+export const formatUciMove = (from: Position, to: Position): string => {
+  const colToChar = (c: number) => String.fromCharCode(97 + c);
+  const rowToChar = (r: number) => (9 - r).toString();
+
+  return `${colToChar(from.col)}${rowToChar(from.row)}${colToChar(to.col)}${rowToChar(to.row)}`;
+};
+
+export const parseUciMove = (uci: string): { from: Position; to: Position } | null => {
+  if (!uci || uci.length < 4) return null;
+
+  const charToCol = (ch: string) => ch.charCodeAt(0) - 97;
+  const charToRow = (ch: string) => 9 - parseInt(ch, 10);
+
+  const fromCol = charToCol(uci[0]);
+  const fromRow = charToRow(uci[1]);
+  const toCol = charToCol(uci[2]);
+  const toRow = charToRow(uci[3]);
+
+  if (isInsideBoard(fromRow, fromCol) && isInsideBoard(toRow, toCol)) {
+    return {
+      from: { row: fromRow, col: fromCol },
+      to: { row: toRow, col: toCol },
+    };
+  }
+
+  return null;
 };

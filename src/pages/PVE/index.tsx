@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { message } from 'antd';
+import { Modal, message } from 'antd';
+import { Cpu, RotateCcw, Shield, Play } from 'lucide-react';
 import {
   type BoardGrid,
   type Position,
@@ -10,30 +10,31 @@ import {
   boardToFen,
   getPieceColor,
   getLegalMoves,
+  checkGameState,
   formatUciMove,
   parseUciMove,
 } from '@/utils/xiangqi';
 import { XiangqiBoard } from '@/components/PVE/XiangqiBoard';
-import { EvaluationBar } from '@/components/PVE/EvaluationBar';
 import { BoardControls } from '@/components/PVE/BoardControls';
 import { MoveHistory } from '@/components/PVE/MoveHistory';
-import { DifficultySelector } from '@/components/PVE/DifficultySelector';
 import { BoardSettings } from '@/components/PVE/BoardSettings';
 import aiService from '@/services/ai.service';
 import userService from '@/services/user.service';
-import type { AIDifficultyLevel, BoardType } from '@/types/ai';
+import type { AIDifficultyLevel, BoardType, PieceStyle } from '@/types/ai';
 
 export const PvePage: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const urlDifficulty = searchParams.get('difficulty') as AIDifficultyLevel | null;
-
-  const [difficulty, setDifficulty] = useState<AIDifficultyLevel>(
-    urlDifficulty || 'apprentice'
-  );
-  const [boardType, setBoardType] = useState<BoardType>('wood');
+  // Game Setup & Status
+  const [matchStatus, setMatchStatus] = useState<'idle' | 'playing' | 'ended'>('idle');
+  const [difficulty, setDifficulty] = useState<AIDifficultyLevel>('intermediate');
   const [playerSide, setPlayerSide] = useState<'red' | 'black'>('red');
+  const [boardType, setBoardType] = useState<BoardType>('wood');
+  const [pieceStyle, setPieceStyle] = useState<PieceStyle>('classic');
 
-  // Game state
+  // Match Metadata
+  const [matchId, setMatchId] = useState<string>('');
+  const [gameResult, setGameResult] = useState<'win' | 'lose' | 'draw' | null>(null);
+
+  // Board State
   const [fenHistory, setFenHistory] = useState<string[]>([INITIAL_FEN]);
   const [boardState, setBoardState] = useState<BoardGrid>(
     () => fenToBoard(INITIAL_FEN).board
@@ -44,36 +45,35 @@ export const PvePage: React.FC = () => {
   const [lastMove, setLastMove] = useState<{ from: Position; to: Position } | null>(null);
   const [hintMove, setHintMove] = useState<{ from: Position; to: Position } | null>(null);
   const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
-  const [evaluationScore, setEvaluationScore] = useState<number>(0.0);
-  const [isAiThinking, setIsAiThinking] = useState<boolean>(false);
-  const [isHintLoading, setIsHintLoading] = useState<boolean>(false);
-  const [matchStatus, setMatchStatus] = useState<'playing' | 'win' | 'lose' | 'draw'>('playing');
-  const [clientMatchId, setClientMatchId] = useState<string>(() => crypto.randomUUID());
 
-  const handleMatchEnd = async (result: 'win' | 'lose' | 'draw') => {
-    if (matchStatus !== 'playing') return;
-    setMatchStatus(result);
-    
-    try {
-      const res = await userService.savePveMatch({
-        difficulty,
-        result,
-        playerSide,
-        clientMatchId,
-      });
-      if (res.reward > 0) {
-        message.success(`Bạn đã thắng! Nhận được ${res.reward} ELO`);
-      } else if (result === 'lose') {
-        message.error('Bạn đã thua!');
-      } else {
-        message.info('Ván cờ hòa!');
-      }
-    } catch (err) {
-      console.error('Lỗi lưu kết quả trận đấu:', err);
+  // Loading States
+  const [isAiThinking, setIsAiThinking] = useState<boolean>(false);
+
+  // Initialize new match
+  const handleStartMatch = (diff: AIDifficultyLevel = difficulty, side: 'red' | 'black' = playerSide) => {
+    setMatchId('pve_match');
+    setDifficulty(diff);
+    setPlayerSide(side);
+    setMatchStatus('playing');
+    setGameResult(null);
+
+    const { board } = fenToBoard(INITIAL_FEN);
+    setBoardState(board);
+    setFenHistory([INITIAL_FEN]);
+    setMoveHistory([]);
+    setTurn('red');
+    setSelectedPos(null);
+    setValidMoves([]);
+    setLastMove(null);
+    setHintMove(null);
+
+    // If player is Black, AI moves first as Red
+    if (side === 'black') {
+      makeAiMove(INITIAL_FEN);
     }
   };
 
-  // Trigger Pikafish AI move
+  // AI Move Handler
   const makeAiMove = async (currentFen: string) => {
     setIsAiThinking(true);
     try {
@@ -82,11 +82,7 @@ export const PvePage: React.FC = () => {
         difficulty,
       });
 
-      if (res.evaluationScore !== undefined) {
-        setEvaluationScore(res.evaluationScore);
-      }
-
-      if (res.bestMove) {
+      if (res && res.bestMove) {
         const parsed = parseUciMove(res.bestMove);
         if (parsed) {
           const { from, to } = parsed;
@@ -94,6 +90,7 @@ export const PvePage: React.FC = () => {
             const nextBoard = prevBoard.map((row) => [...row]);
             const piece = nextBoard[from.row][from.col];
             const destPiece = nextBoard[to.row][to.col];
+
             nextBoard[to.row][to.col] = piece;
             nextBoard[from.row][from.col] = null;
 
@@ -106,11 +103,14 @@ export const PvePage: React.FC = () => {
                 moveStr: res.bestMove,
               };
               setMoveHistory((prev) => [...prev, moveRec]);
-              const newFen = boardToFen(nextBoard, 'red');
+              const newFen = boardToFen(nextBoard, playerSide);
               setFenHistory((prev) => [...prev, newFen]);
-            }
-            if (destPiece === 'K' || destPiece === 'k') {
-              handleMatchEnd('lose');
+
+              // Checkmate Check after AI move
+              const gameState = checkGameState(nextBoard, playerSide);
+              if (gameState === 'CHECKMATE' || gameState === 'KING_CAPTURED' || gameState === 'STALEMATE') {
+                setTimeout(() => handleMatchEnd('lose'), 100);
+              }
             }
             return nextBoard;
           });
@@ -118,7 +118,6 @@ export const PvePage: React.FC = () => {
           setLastMove({ from, to });
           setTurn(playerSide);
         } else {
-          // parseUciMove returned null (e.g., "(none)"), AI has no moves
           handleMatchEnd('win');
         }
       } else {
@@ -164,6 +163,9 @@ export const PvePage: React.FC = () => {
         nextBoard[to.row][to.col] = movingPiece;
         nextBoard[from.row][from.col] = null;
 
+        const aiSide: 'red' | 'black' = playerSide === 'red' ? 'black' : 'red';
+        const nextFen = boardToFen(nextBoard, aiSide);
+
         setBoardState(nextBoard);
         setLastMove({ from, to });
         setSelectedPos(null);
@@ -178,12 +180,12 @@ export const PvePage: React.FC = () => {
           moveStr,
         };
         setMoveHistory((prev) => [...prev, moveRec]);
-
-        const nextFen = boardToFen(nextBoard, playerSide === 'red' ? 'black' : 'red');
         setFenHistory((prev) => [...prev, nextFen]);
-        setTurn(playerSide === 'red' ? 'black' : 'red');
+        setTurn(aiSide);
 
-        if (capturedPiece === 'K' || capturedPiece === 'k') {
+        // Checkmate Check after Player move
+        const gameState = checkGameState(nextBoard, aiSide);
+        if (gameState === 'CHECKMATE' || gameState === 'KING_CAPTURED' || gameState === 'STALEMATE') {
           handleMatchEnd('win');
         } else {
           // Request AI move
@@ -196,51 +198,34 @@ export const PvePage: React.FC = () => {
     }
   };
 
-  // Handle AI Hint Request
-  const handleHint = async () => {
-    if (isAiThinking || isHintLoading) return;
-
-    const currentFen = boardToFen(boardState, turn);
-    setIsHintLoading(true);
+  // Handle Match Completion
+  const handleMatchEnd = async (result: 'win' | 'lose' | 'draw') => {
+    setMatchStatus('ended');
+    setGameResult(result);
 
     try {
-      const res = await aiService.getAIHint({
-        fen: currentFen,
+      await userService.savePveMatch({
         difficulty,
+        result,
+        playerSide,
+        clientMatchId: matchId || `pve_${Date.now()}`,
+        timeControl: 15,
+        initialFen: INITIAL_FEN,
       });
-
-      if (res.suggestedMove) {
-        const parsed = parseUciMove(res.suggestedMove);
-        if (parsed) {
-          setHintMove(parsed);
-          message.info({
-            content: res.explanation || `Gợi ý nước đi: ${res.suggestedMove}`,
-            duration: 4,
-          });
-        }
-      }
-    } catch {
-      message.error('Không thể lấy gợi ý từ Pikafish AI');
-    } finally {
-      setIsHintLoading(false);
+    } catch (err) {
+      console.error('Failed to save PVE match history:', err);
     }
   };
 
-  // Handle Undo Move (reverts both player move and bot move)
+  // Handle Undo Move
   const handleUndo = () => {
-    if (isAiThinking) return;
-
-    // If it's player's turn and at least 2 moves were played, revert 2 moves (Bot + Player)
-    // Otherwise revert 1 move
-    const stepsToRevert = fenHistory.length > 2 ? 2 : (fenHistory.length > 1 ? 1 : 0);
-
-    if (stepsToRevert === 0) {
+    if (isAiThinking || fenHistory.length <= 2) {
       message.info('Không thể đi lại thêm nữa!');
       return;
     }
 
-    const newFenHistory = fenHistory.slice(0, fenHistory.length - stepsToRevert);
-    const newMoveHistory = moveHistory.slice(0, moveHistory.length - stepsToRevert);
+    const newFenHistory = fenHistory.slice(0, fenHistory.length - 2);
+    const newMoveHistory = moveHistory.slice(0, moveHistory.length - 2);
 
     const prevFen = newFenHistory[newFenHistory.length - 1];
     const { board } = fenToBoard(prevFen);
@@ -261,123 +246,224 @@ export const PvePage: React.FC = () => {
     setValidMoves([]);
     setLastMove(prevLastMove);
     setHintMove(null);
-    message.success('Đã hoàn tác nước đi!');
+    message.success('Đã đi lại 1 nước!');
   };
 
-  // Handle Restart Match
-  const handleRestart = (newSide?: 'red' | 'black') => {
-    const side = newSide ?? playerSide;
-    const { board } = fenToBoard(INITIAL_FEN);
-    setBoardState(board);
-    setFenHistory([INITIAL_FEN]);
-    setMoveHistory([]);
-    setTurn('red');
-    setSelectedPos(null);
-    setValidMoves([]);
-    setLastMove(null);
-    setHintMove(null);
-    setEvaluationScore(0.0);
-    setMatchStatus('playing');
-    setClientMatchId(crypto.randomUUID());
-    
-    if (side === 'black') {
-      makeAiMove(INITIAL_FEN);
+  // Handle Hint Request
+  const handleHint = async () => {
+    if (isAiThinking || turn !== playerSide || matchStatus !== 'playing') return;
+
+    try {
+      const currentFen = fenHistory[fenHistory.length - 1] || INITIAL_FEN;
+      const hint = await aiService.getAIHint({
+        fen: currentFen,
+        difficulty: 'master',
+      });
+
+      if (hint && hint.suggestedMove) {
+        const parsed = parseUciMove(hint.suggestedMove);
+        if (parsed) {
+          setHintMove(parsed);
+          message.success(`Gợi ý AI: Nước đi ${hint.suggestedMove}`);
+        }
+      }
+    } catch (err) {
+      console.error('Hint error:', err);
+      message.error('Không thể lấy gợi ý AI');
     }
-    
-    if (!newSide) {
-      message.success('Đã khởi tạo lại bàn cờ mới!');
-    } else {
-      message.success(`Đã đổi sang phe ${side === 'red' ? 'Đỏ' : 'Đen'}!`);
-    }
-  };
-
-  const handleSideChange = (side: 'red' | 'black') => {
-    setPlayerSide(side);
-    handleRestart(side);
-  };
-
-  // Handle Resign
-  const handleResign = () => {
-    if (matchStatus !== 'playing') return;
-    handleMatchEnd('lose');
   };
 
   return (
-    <div className="w-full flex flex-col bg-[#fcf9f8] min-h-screen text-[#1b1c1c] pb-12">
+    <div className="w-full min-h-screen bg-[#fcf9f8] text-[#1b1c1c] pb-16 md:pb-8">
       {/* Top Banner Header */}
-      <div className="w-full bg-[#f6f3f2] border-b border-[#d4c3be] px-4 sm:px-8 md:px-16 py-5 shadow-xs">
+      <div className="w-full bg-[#f6f3f2] border-b border-[#d4c3be] px-4 sm:px-8 md:px-16 py-6 shadow-xs">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-2xl md:text-3xl font-serif font-bold text-[#442a22]">
-              Đấu Với Pikafish AI
+            <h1 className="text-2xl md:text-3xl font-serif font-bold text-[#442a22] flex items-center gap-3">
+              <Cpu className="w-8 h-8 text-[#361e15]" />
+              Đấu Với Máy (AI Pikafish Engine)
             </h1>
             <p className="text-xs sm:text-sm text-[#504441] mt-1 font-sans">
-              Trải nghiệm Pikafish Engine NNUE - Trí tuệ nhân tạo Cờ Tướng đỉnh cao.
+              Luyện tập cờ Tướng với Pikafish AI thế hệ mới. Đấu tập nâng cao trình độ (Không tính ELO).
             </p>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 bg-[#e4e2e1] px-3.5 py-1.5 rounded-lg border border-[#d4c3be]">
-            <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-xs font-bold text-[#442a22]">Pikafish AVX2 Active</span>
           </div>
         </div>
       </div>
 
-      {/* Main Content Arena */}
-      <main className="max-w-[1400px] mx-auto w-full px-4 sm:px-8 md:px-12 py-6 space-y-8 flex-1">
-        {/* Top Control Bar: Difficulty Selector */}
-        <DifficultySelector
-          selectedDifficulty={difficulty}
-          onSelect={(level) => setDifficulty(level)}
-        />
+      {/* Main Grid Content */}
+      <main className="max-w-[1400px] mx-auto w-full px-4 sm:px-8 md:px-16 py-6 space-y-8">
+        {matchStatus === 'idle' ? (
+          /* Start Screen Setup Card */
+          <div className="max-w-2xl mx-auto bg-white border border-[#d4c3be] rounded-2xl p-8 shadow-md text-center space-y-6">
+            <div className="w-16 h-16 rounded-full bg-[#361e15] flex items-center justify-center mx-auto text-white">
+              <Cpu className="w-8 h-8" />
+            </div>
 
-        {/* Game Layout (Grid 12 cols: Board on 7 cols, Side panel on 5 cols) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left / Main Column: Xiangqi Board & Action Buttons (7 cols) */}
-          <div className="lg:col-span-7 space-y-6">
-            <EvaluationBar
-              score={evaluationScore}
-              difficulty={difficulty}
-              playerSide={playerSide}
-              turn={turn}
-              isThinking={isAiThinking}
-            />
+            <div>
+              <h2 className="text-2xl font-serif font-bold text-[#442a22]">
+                Bắt Đầu Trận Đấu Với AI
+              </h2>
+              <p className="text-xs text-[#504441] mt-1">
+                Lựa chọn mức độ thử thách và phe cờ ban đầu.
+              </p>
+            </div>
 
-            <XiangqiBoard
-              board={boardState}
-              selectedPos={selectedPos}
-              validMoves={validMoves}
-              lastMove={lastMove}
-              hintMove={hintMove}
-              onSquareClick={handleSquareClick}
-              boardType={boardType}
-              playerSide={playerSide}
-              isAiThinking={isAiThinking}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2 text-left">
+                <label className="text-xs font-bold text-[#442a22]">Cấp Độ AI</label>
+                <select
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value as AIDifficultyLevel)}
+                  className="w-full bg-[#fcf9f8] border border-[#d4c3be] rounded-xl px-3 py-2 text-xs font-bold text-[#442a22]"
+                >
+                  <option value="beginner">Tập sự (Dễ)</option>
+                  <option value="apprentice">Kỳ thủ (Vừa)</option>
+                  <option value="intermediate">Thành thạo (Khó)</option>
+                  <option value="master">Kiện tướng (Rất khó)</option>
+                  <option value="grandmaster">Đại kiện tướng (Cực khó)</option>
+                </select>
+              </div>
 
-            <BoardControls
-              onUndo={handleUndo}
-              onHint={handleHint}
-              onResign={handleResign}
-              onRestart={handleRestart}
-              canUndo={fenHistory.length > 2}
-              isAiThinking={isAiThinking}
-              isHintLoading={isHintLoading}
-            />
+              <div className="space-y-2 text-left">
+                <label className="text-xs font-bold text-[#442a22]">Chọn Phe</label>
+                <select
+                  value={playerSide}
+                  onChange={(e) => setPlayerSide(e.target.value as 'red' | 'black')}
+                  className="w-full bg-[#fcf9f8] border border-[#d4c3be] rounded-xl px-3 py-2 text-xs font-bold text-[#442a22]"
+                >
+                  <option value="red">Cầm Đỏ (Đi trước)</option>
+                  <option value="black">Cầm Đen (Đi sau)</option>
+                </select>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleStartMatch()}
+              className="w-full bg-[#361e15] hover:bg-[#26140e] text-white font-bold py-4 rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 text-sm"
+            >
+              <Play className="w-5 h-5 fill-current" />
+              <span>VÀO BÀN CỜ ĐẤU TẬP NGAY</span>
+            </button>
           </div>
+        ) : (
+          /* Live Match Board Arena */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Left Column: Board & Controls (7 cols) */}
+            <div className="lg:col-span-7 space-y-6">
+              {/* Turn Status Banner */}
+              <div className="bg-white border border-[#d4c3be] rounded-2xl p-4 shadow-xs flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`w-3.5 h-3.5 rounded-full ${
+                      turn === playerSide ? 'bg-emerald-600 animate-ping' : 'bg-amber-500'
+                    }`}
+                  />
+                  <span className="text-xs sm:text-sm font-bold font-serif text-[#442a22]">
+                    {isAiThinking
+                      ? '🤖 Pikafish Engine AI đang suy tính nước đi...'
+                      : turn === playerSide
+                      ? '🟢 Đến lượt bạn! Hãy di chuyển cờ.'
+                      : '⏳ Đang chờ Pikafish AI đi cờ...'}
+                  </span>
+                </div>
 
-          {/* Right Column: Move History & Board Settings (5 cols) */}
-          <div className="lg:col-span-5 space-y-6">
-            <MoveHistory history={moveHistory} />
+                <div className="px-3 py-1 bg-[#fcf9f8] border border-[#d4c3be] rounded-lg text-xs font-bold text-[#504441]">
+                  Cấp độ: <span className="uppercase text-[#361e15]">{difficulty}</span>
+                </div>
+              </div>
 
-            <BoardSettings
-              selectedBoard={boardType}
-              playerSide={playerSide}
-              onSelectBoard={(b) => setBoardType(b)}
-              onSelectSide={(s) => handleSideChange(s)}
-            />
+              <XiangqiBoard
+                board={boardState}
+                selectedPos={selectedPos}
+                validMoves={validMoves}
+                lastMove={lastMove}
+                hintMove={hintMove}
+                onSquareClick={handleSquareClick}
+                boardType={boardType}
+                pieceStyle={pieceStyle}
+                playerSide={playerSide}
+              />
+
+              <BoardControls
+                onUndo={handleUndo}
+                onHint={handleHint}
+                onResign={() => handleMatchEnd('lose')}
+                onRestart={() => handleStartMatch()}
+                canUndo={fenHistory.length > 2 && !isAiThinking}
+              />
+            </div>
+
+            {/* Right Column: Move History & Board Settings (5 cols) */}
+            <div className="lg:col-span-5 space-y-6">
+              <MoveHistory history={moveHistory} />
+
+              <BoardSettings
+                selectedBoard={boardType}
+                selectedPieceStyle={pieceStyle}
+                playerSide={playerSide}
+                onSelectBoard={(b) => setBoardType(b)}
+                onSelectPieceStyle={(s) => setPieceStyle(s)}
+                onSelectSide={(s) => {
+                  setPlayerSide(s);
+                  handleStartMatch(difficulty, s);
+                }}
+                hideSideSelection={false}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </main>
+
+      {/* Result Modal */}
+      {matchStatus === 'ended' && gameResult && (
+        <Modal open={true} footer={null} closable={false} centered width={400}>
+          <div className="text-center py-4 space-y-4">
+            <div
+              className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${
+                gameResult === 'win'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-red-100 text-red-800'
+              }`}
+            >
+              <Shield className="w-8 h-8" />
+            </div>
+
+            <h2 className="text-2xl font-serif font-bold text-[#442a22]">
+              {gameResult === 'win'
+                ? 'CHIẾN THẮNG BẤT NGỜ! 🎉'
+                : gameResult === 'lose'
+                ? 'BẠN ĐÃ THẤT BẠI'
+                : 'HÒA CỜ'}
+            </h2>
+
+            <p className="text-xs text-[#504441]">
+              {gameResult === 'win'
+                ? 'Chúc mừng! Bạn đã đánh bại AI Pikafish Engine (Trận đấu tập không tính điểm ELO xếp hạng).'
+                : 'Rất tiếc! Bạn đã thất bại trước AI Pikafish Engine (Không bị trừ điểm ELO).'}
+            </p>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => handleStartMatch()}
+                className="flex-1 bg-[#361e15] hover:bg-[#26140e] text-white font-bold py-3 rounded-xl shadow-md cursor-pointer transition-all text-xs flex items-center justify-center gap-1.5"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Chơi Lại Trận Mới</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMatchStatus('idle')}
+                className="flex-1 bg-white border border-[#d4c3be] hover:bg-stone-50 text-[#442a22] font-bold py-3 rounded-xl shadow-xs cursor-pointer transition-all text-xs"
+              >
+                Về Màn Hình Đấu Tập
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

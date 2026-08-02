@@ -113,9 +113,9 @@ class SocketService {
 
   // --- Private Room Methods ---
 
-  public createPrivateRoom(settings: { totalRounds: number; timeControl: number; hostSide: string }): void {
+  public createPrivateRoom(settings: { totalRounds: number; hostSide: 'random' | 'red' | 'black' }): void {
     const socket = this.connect();
-    console.log(`[SocketService] Emitting create_private_room with settings`, settings);
+    console.log('[SocketService] Emitting create_private_room...', settings);
     socket.emit('create_private_room', settings);
   }
 

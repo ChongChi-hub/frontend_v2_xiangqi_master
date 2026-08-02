@@ -105,6 +105,7 @@ export const PvpPage: React.FC<PvpPageProps> = ({
   const [lastMove, setLastMove] = useState<{ from: Position; to: Position } | null>(null);
   const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
   const [gameResult, setGameResult] = useState<'VICTORY' | 'DEFEAT' | 'DRAW' | null>(null);
+  const [matchDuration, setMatchDuration] = useState<number>(0);
   
   // Track opponent draw offer
   const [drawOfferReceived, setDrawOfferReceived] = useState<boolean>(false);
@@ -128,6 +129,20 @@ export const PvpPage: React.FC<PvpPageProps> = ({
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (gameResult) return;
+    const timer = setInterval(() => {
+      setMatchDuration((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [gameResult]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   useEffect(() => {
     if (!matchId) return;
@@ -158,6 +173,10 @@ export const PvpPage: React.FC<PvpPageProps> = ({
       const { board, turn: fenTurn } = fenToBoard(info.fen);
       setBoardState(board);
       setTurn(fenTurn);
+      
+      if (info.startedAt) {
+        setMatchDuration(Math.floor((Date.now() - info.startedAt) / 1000));
+      }
     };
 
     const handleMoveMade = (data: MoveMadeData) => {
@@ -374,7 +393,7 @@ export const PvpPage: React.FC<PvpPageProps> = ({
                 </span>
               </div>
               <div className="mt-3 text-xs font-bold text-stone-500 font-mono flex items-center gap-1.5 bg-stone-100 px-3 py-1.5 rounded-lg border border-stone-200">
-                <Clock className="w-3.5 h-3.5 text-stone-600" /> Vô hạn
+                <Clock className="w-3.5 h-3.5 text-stone-600" /> {formatTime(matchDuration)}
               </div>
             </div>
 

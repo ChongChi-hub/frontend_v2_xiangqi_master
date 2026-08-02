@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, message } from 'antd';
 import {
   Lock,
@@ -13,7 +13,7 @@ import {
   LogOut,
   Trophy,
   RotateCcw,
-  Swords,
+  User as UserIcon,
 } from 'lucide-react';
 import {
   type BoardGrid,
@@ -24,13 +24,17 @@ import {
   boardToFen,
   getPieceColor,
   getLegalMoves,
+  checkGameState,
   formatUciMove,
+  parseUciMove,
 } from '@/utils/xiangqi';
 import { XiangqiBoard } from '@/components/PVE/XiangqiBoard';
 import { BoardControls } from '@/components/PVE/BoardControls';
 import { MoveHistory } from '@/components/PVE/MoveHistory';
 import { BoardSettings } from '@/components/PVE/BoardSettings';
-import socketService from '@/services/socket.service';
+import socketService, { type MoveMadeData } from '@/services/socket.service';
+import { useAuthStore } from '@/store/auth.store';
+import { useUserProfile } from '@/hooks/useUser';
 import type { BoardType, PieceStyle } from '@/types/ai';
 
 interface SeriesScore {
@@ -40,6 +44,15 @@ interface SeriesScore {
 }
 
 export const RoomsPage: React.FC = () => {
+  const authUser = useAuthStore((state) => state.user);
+  const { data: profileData } = useUserProfile();
+
+  const currentUsername =
+    (profileData as unknown as { username?: string })?.username ||
+    profileData?.user?.username ||
+    authUser?.username ||
+    'Kỳ Thủ';
+
   // Navigation & Room View State
   const [isInMatch, setIsInMatch] = useState<boolean>(false);
   const [activeRoomCode, setActiveRoomCode] = useState<string | null>(null);
@@ -67,9 +80,9 @@ export const RoomsPage: React.FC = () => {
   const [boardType, setBoardType] = useState<BoardType>('wood');
   const [pieceStyle, setPieceStyle] = useState<PieceStyle>('classic');
   const [playerSide, setPlayerSide] = useState<'red' | 'black'>('red');
+  const [opponentUsername, setOpponentUsername] = useState<string>('Đối Thủ');
 
   // Game Board Logic State
-  const [fenHistory, setFenHistory] = useState<string[]>([INITIAL_FEN]);
   const [boardState, setBoardState] = useState<BoardGrid>(
     () => fenToBoard(INITIAL_FEN).board
   );
@@ -77,8 +90,8 @@ export const RoomsPage: React.FC = () => {
   const [selectedPos, setSelectedPos] = useState<Position | null>(null);
   const [validMoves, setValidMoves] = useState<Position[]>([]);
   const [lastMove, setLastMove] = useState<{ from: Position; to: Position } | null>(null);
-  const [hintMove, setHintMove] = useState<{ from: Position; to: Position } | null>(null);
   const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
+  const [gameResult, setGameResult] = useState<string | null>(null);
 
   // 1. Generate new private room
   const handleCreateRoom = () => {
@@ -87,7 +100,7 @@ export const RoomsPage: React.FC = () => {
     const chosenSide = side === 'random' ? (Math.random() > 0.5 ? 'red' : 'black') : side;
     setPlayerSide(chosenSide);
     socketService.joinRoom(`room_${code}`);
-    message.success(`Đã khởi tạo phòng riêng #${code} (${totalRounds} hiệp)!`);
+    message.success(`Đã tạo phòng riêng #${code}! Đang chờ đối thủ nhập mã vào phòng...`);
   };
 
   const handleCopyCode = () => {
@@ -106,24 +119,85 @@ export const RoomsPage: React.FC = () => {
     message.info('Đã hủy phòng riêng.');
   };
 
-  // 2. Start game directly inside the Room page
-  const handleEnterMatchLobby = (code: string) => {
+  // 2. Start game directly inside the Private Room page
+  const handleEnterMatchLobby = useCallback((code: string, isHost: boolean = true) => {
     setActiveRoomCode(code);
     setIsInMatch(true);
     setCurrentRound(1);
     setScore({ playerWins: 0, opponentWins: 0, draws: 0 });
+    setGameResult(null);
 
     const { board } = fenToBoard(INITIAL_FEN);
     setBoardState(board);
-    setFenHistory([INITIAL_FEN]);
     setMoveHistory([]);
     setTurn('red');
     setSelectedPos(null);
     setValidMoves([]);
     setLastMove(null);
-  };
 
-  // 3. Join Room by Code
+    if (isHost) {
+      setOpponentUsername('Khách (Đang đấu)');
+    } else {
+      setOpponentUsername('Chủ Phòng');
+      setPlayerSide('black');
+    }
+  }, []);
+
+  // Socket listener for room join events
+  useEffect(() => {
+    const socket = socketService.connect();
+
+    const handleUserJoined = (data: { userId: string }) => {
+      console.log('[RoomsPage] User joined room:', data);
+      if (createdRoomCode) {
+        message.success('Đối thủ đã nhập mã và tham gia phòng! Bắt đầu ván đấu...');
+        handleEnterMatchLobby(createdRoomCode, true);
+      }
+    };
+
+    const handleMoveMade = (data: MoveMadeData) => {
+      const { board, turn: nextTurn } = fenToBoard(data.fen);
+      const parsed = parseUciMove(data.moveStr);
+
+      setBoardState(board);
+      setTurn(nextTurn);
+      setSelectedPos(null);
+      setValidMoves([]);
+
+      if (parsed) {
+        setLastMove({ from: parsed.from, to: parsed.to });
+        const piece = board[parsed.to.row][parsed.to.col];
+        if (piece) {
+          setMoveHistory((prev) => [
+            ...prev,
+            { from: parsed.from, to: parsed.to, piece, moveStr: data.moveStr },
+          ]);
+        }
+      }
+
+      // Checkmate check
+      const gameState = checkGameState(board, nextTurn);
+      if (gameState === 'CHECKMATE' || gameState === 'KING_CAPTURED' || gameState === 'STALEMATE') {
+        const isWinner = nextTurn !== playerSide;
+        setGameResult(isWinner ? 'VICTORY' : 'DEFEAT');
+        if (isWinner) {
+          setScore((s) => ({ ...s, playerWins: s.playerWins + 1 }));
+        } else {
+          setScore((s) => ({ ...s, opponentWins: s.opponentWins + 1 }));
+        }
+      }
+    };
+
+    socket.on('user_joined', handleUserJoined);
+    socket.on('move_made', handleMoveMade);
+
+    return () => {
+      socket.off('user_joined', handleUserJoined);
+      socket.off('move_made', handleMoveMade);
+    };
+  }, [createdRoomCode, handleEnterMatchLobby, playerSide]);
+
+  // 3. Join Room by 6-digit Code
   const handleJoinRoom = () => {
     const trimmedCode = inputRoomCode.trim();
     if (!trimmedCode || trimmedCode.length < 4) {
@@ -134,32 +208,33 @@ export const RoomsPage: React.FC = () => {
     setIsJoining(true);
     socketService.joinRoom(`room_${trimmedCode}`);
     message.loading({
-      content: `Đang kết nối vào phòng #${trimmedCode}...`,
+      content: `Đang kết nối vào phòng riêng #${trimmedCode}...`,
       key: 'join_room_page',
     });
 
     setTimeout(() => {
       setIsJoining(false);
       message.success({
-        content: `Đã kết nối thành công vào phòng #${trimmedCode}! Ván đấu bắt đầu.`,
+        content: `Kết nối thành công vào phòng #${trimmedCode}! Ván đấu bắt đầu.`,
         key: 'join_room_page',
       });
-      handleEnterMatchLobby(trimmedCode);
+      handleEnterMatchLobby(trimmedCode, false);
     }, 1000);
   };
 
-  // 4. Host enters own room to test/play
-  const handleHostEnterOwnRoom = () => {
-    if (!createdRoomCode) return;
-    handleEnterMatchLobby(createdRoomCode);
-  };
-
-  // 5. Handle Square Clicks on In-Room Board
+  // 4. Handle Square Clicks on In-Room Board with Checkmate Detection
   const handleSquareClick = (pos: Position) => {
+    if (gameResult) return;
+
+    // Only allow moving on your turn
+    if (turn !== playerSide) {
+      message.warning(`Đang là lượt đi của đối thủ (${turn === 'red' ? 'Phe Đỏ' : 'Phe Đen'})!`);
+      return;
+    }
+
     const clickedPiece = boardState[pos.row][pos.col];
     const clickedColor = getPieceColor(clickedPiece);
 
-    // Select piece belonging to current turn player
     if (clickedColor === turn) {
       setSelectedPos(pos);
       const moves = getLegalMoves(boardState, pos);
@@ -167,7 +242,6 @@ export const RoomsPage: React.FC = () => {
       return;
     }
 
-    // Execute Move
     if (selectedPos) {
       const isValid = validMoves.some((m) => m.row === pos.row && m.col === pos.col);
       if (isValid) {
@@ -183,11 +257,13 @@ export const RoomsPage: React.FC = () => {
         nextBoard[to.row][to.col] = movingPiece;
         nextBoard[from.row][from.col] = null;
 
+        const nextTurn = turn === 'red' ? 'black' : 'red';
+        const nextFen = boardToFen(nextBoard, nextTurn);
+
         setBoardState(nextBoard);
         setLastMove({ from, to });
         setSelectedPos(null);
         setValidMoves([]);
-        setHintMove(null);
 
         const moveRec: MoveRecord = {
           from,
@@ -197,11 +273,26 @@ export const RoomsPage: React.FC = () => {
           moveStr,
         };
         setMoveHistory((prev) => [...prev, moveRec]);
-
-        const nextTurn = turn === 'red' ? 'black' : 'red';
-        const nextFen = boardToFen(nextBoard, nextTurn);
-        setFenHistory((prev) => [...prev, nextFen]);
         setTurn(nextTurn);
+
+        // Send move to room over socket
+        if (activeRoomCode) {
+          socketService.sendMove(activeRoomCode, nextFen, moveStr);
+        }
+
+        // Checkmate Check
+        const gameState = checkGameState(nextBoard, nextTurn);
+        if (gameState === 'CHECKMATE' || gameState === 'KING_CAPTURED' || gameState === 'STALEMATE') {
+          const isWinner = nextTurn !== playerSide;
+          setGameResult(isWinner ? 'VICTORY' : 'DEFEAT');
+          if (isWinner) {
+            setScore((s) => ({ ...s, playerWins: s.playerWins + 1 }));
+            message.success('CHIẾU BÍ! Bạn đã giành chiến thắng!');
+          } else {
+            setScore((s) => ({ ...s, opponentWins: s.opponentWins + 1 }));
+            message.error('BỊ CHIẾU BÍ! Bạn đã thất bại!');
+          }
+        }
       } else {
         setSelectedPos(null);
         setValidMoves([]);
@@ -209,45 +300,13 @@ export const RoomsPage: React.FC = () => {
     }
   };
 
-  // 6. Handle Undo Move
-  const handleUndo = () => {
-    if (fenHistory.length <= 1) {
-      message.info('Không thể đi lại thêm nữa!');
-      return;
-    }
-
-    const newFenHistory = fenHistory.slice(0, fenHistory.length - 1);
-    const newMoveHistory = moveHistory.slice(0, moveHistory.length - 1);
-
-    const prevFen = newFenHistory[newFenHistory.length - 1];
-    const { board } = fenToBoard(prevFen);
-
-    const prevLastMove =
-      newMoveHistory.length > 0
-        ? {
-            from: newMoveHistory[newMoveHistory.length - 1].from,
-            to: newMoveHistory[newMoveHistory.length - 1].to,
-          }
-        : null;
-
-    setFenHistory(newFenHistory);
-    setMoveHistory(newMoveHistory);
-    setBoardState(board);
-    setTurn((prev) => (prev === 'red' ? 'black' : 'red'));
-    setSelectedPos(null);
-    setValidMoves([]);
-    setLastMove(prevLastMove);
-    setHintMove(null);
-    message.success('Đã hoàn tác 1 nước đi!');
-  };
-
-  // 7. Handle Exit Match with Confirmation Modal
+  // 5. Handle Exit Match with Confirmation Modal
   const handleConfirmExitMatch = () => {
     Modal.confirm({
-      title: 'Xác nhận thoát trận đấu?',
+      title: 'Xác nhận rời phòng đấu?',
       content:
-        'Bạn có chắc chắn muốn thoát khỏi ván đấu trong phòng riêng không? Thoát trận khi ván đấu chưa kết thúc có thể bị tính thua.',
-      okText: 'Thoát ngay',
+        'Bạn có chắc chắn muốn rời khỏi phòng đấu riêng này không?',
+      okText: 'Thoát phòng',
       cancelText: 'Ở lại ván đấu',
       okButtonProps: { danger: true },
       onOk: () => {
@@ -263,16 +322,16 @@ export const RoomsPage: React.FC = () => {
     });
   };
 
-  // 8. Next Round in Series
+  // 6. Next Round in Series
   const handleNextRound = () => {
     if (currentRound >= totalRounds) {
       message.info('Trận đấu chuỗi số hiệp đã hoàn thành!');
       return;
     }
     setCurrentRound((prev) => prev + 1);
+    setGameResult(null);
     const { board } = fenToBoard(INITIAL_FEN);
     setBoardState(board);
-    setFenHistory([INITIAL_FEN]);
     setMoveHistory([]);
     setTurn('red');
     setSelectedPos(null);
@@ -292,14 +351,14 @@ export const RoomsPage: React.FC = () => {
               Phòng Riêng Trực Tuyến
             </h1>
             <p className="text-xs sm:text-sm text-[#504441] mt-1 font-sans">
-              Tạo phòng riêng tư hoặc nhập mã để thi đấu trực tiếp với bạn bè qua mạng Internet.
+              Tạo phòng riêng tư hoặc nhập mã để thi đấu trực tiếp với bạn bè. Đảm bảo bảo mật 100%.
             </p>
           </div>
 
           <div className="hidden sm:flex items-center gap-2 bg-[#e4e2e1] px-3.5 py-1.5 rounded-lg border border-[#d4c3be]">
             <Radio className="w-4 h-4 text-emerald-600 animate-pulse" />
             <span className="text-xs font-bold text-[#442a22]">
-              {isInMatch ? `Đang thi đấu (Mã #${activeRoomCode})` : 'Socket.io Internet Ready'}
+              {isInMatch ? `Đang thi đấu (Mã #${activeRoomCode})` : 'Socket.io Connected'}
             </span>
           </div>
         </div>
@@ -321,7 +380,7 @@ export const RoomsPage: React.FC = () => {
                     Tạo Phòng Riêng Mới
                   </h2>
                   <p className="text-xs text-[#504441]">
-                    Cấu hình số hiệp thi đấu, thời gian và chia sẻ mã cho bạn bè.
+                    Cấu hình số hiệp thi đấu, thời gian và nhận mã phòng 6 chữ số.
                   </p>
                 </div>
               </div>
@@ -446,13 +505,16 @@ export const RoomsPage: React.FC = () => {
                     <div className="text-4xl font-mono font-black text-[#361e15] tracking-widest my-3 select-all">
                       #{createdRoomCode}
                     </div>
+                    <p className="text-xs text-stone-600">
+                      Gửi mã phòng này cho bạn bè. Khi bạn bè nhập mã, ván đấu sẽ tự động bắt đầu ngay!
+                    </p>
                   </div>
 
                   <div className="flex flex-wrap items-center justify-center gap-3">
                     <button
                       type="button"
                       onClick={handleCopyCode}
-                      className="bg-[#361e15] text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs hover:bg-[#26140e] cursor-pointer transition-all"
+                      className="bg-[#361e15] text-white px-6 py-3 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs hover:bg-[#26140e] cursor-pointer transition-all"
                     >
                       {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                       <span>{isCopied ? 'Đã sao chép mã!' : 'Sao chép mã phòng'}</span>
@@ -460,17 +522,8 @@ export const RoomsPage: React.FC = () => {
 
                     <button
                       type="button"
-                      onClick={handleHostEnterOwnRoom}
-                      className="bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs hover:bg-emerald-800 cursor-pointer transition-all"
-                    >
-                      <Swords className="w-4 h-4" />
-                      <span>Vào Bàn Cờ Đấu Ngay</span>
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={handleCancelCreatedRoom}
-                      className="bg-white border border-[#d4c3be] text-[#504441] hover:bg-red-50 hover:text-red-700 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                      className="bg-white border border-[#d4c3be] text-[#504441] hover:bg-red-50 hover:text-red-700 px-4 py-3 rounded-xl text-xs font-bold transition-all cursor-pointer"
                     >
                       Hủy phòng
                     </button>
@@ -478,7 +531,7 @@ export const RoomsPage: React.FC = () => {
 
                   <div className="pt-4 border-t border-[#d4c3be]/60 flex items-center justify-center gap-2 text-xs text-[#504441]">
                     <span className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping" />
-                    <span>Đang chờ đối thủ nhập mã trên bất kỳ mạng Internet nào...</span>
+                    <span>Đang chờ đối thủ nhập mã trên bất kỳ thiết bị nào...</span>
                   </div>
                 </div>
               )}
@@ -548,7 +601,7 @@ export const RoomsPage: React.FC = () => {
               <div className="flex items-center gap-6 bg-[#fcf9f8] px-6 py-2 rounded-xl border border-[#d4c3be]">
                 <div className="text-center">
                   <span className="block text-[11px] font-bold text-red-700 font-serif">
-                    Chủ phòng (Đỏ)
+                    {currentUsername} (Bạn)
                   </span>
                   <span className="text-2xl font-black text-red-700 font-mono">
                     {score.playerWins}
@@ -561,7 +614,7 @@ export const RoomsPage: React.FC = () => {
 
                 <div className="text-center">
                   <span className="block text-[11px] font-bold text-stone-900 font-serif">
-                    Đối thủ (Đen)
+                    {opponentUsername}
                   </span>
                   <span className="text-2xl font-black text-stone-900 font-mono">
                     {score.opponentWins}
@@ -586,8 +639,47 @@ export const RoomsPage: React.FC = () => {
                   className="px-4 py-2 bg-[#fdf2f2] hover:bg-[#fde8e8] text-[#b71c1c] font-bold text-xs rounded-xl border border-[#f8b4b4] flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
                 >
                   <LogOut className="w-4 h-4" />
-                  <span>THOÁT TRẬN</span>
+                  <span>THOÁT PHÒNG</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Players Header Card */}
+            <div className="bg-white border border-[#d4c3be] rounded-2xl p-5 shadow-xs flex items-center justify-around gap-4 text-center">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 border border-red-800 flex items-center justify-center text-red-800 font-bold">
+                  <UserIcon className="w-5 h-5" />
+                </div>
+                <div className="text-left">
+                  <span className="block text-xs font-bold text-red-800 font-serif">BÊN ĐỎ</span>
+                  <span className="text-sm font-bold text-[#442a22]">
+                    {playerSide === 'red' ? `${currentUsername} ⭐️ (Bạn)` : opponentUsername}
+                  </span>
+                </div>
+              </div>
+
+              <div className="px-4 py-2 bg-[#fcf9f8] border border-[#d4c3be] rounded-xl flex flex-col items-center">
+                <span className="text-[11px] font-bold text-[#504441]">LƯỢT ĐI HIỆN TẠI</span>
+                <span
+                  className={`text-sm font-black font-serif uppercase tracking-wider ${
+                    turn === 'red' ? 'text-red-700' : 'text-stone-900'
+                  }`}
+                >
+                  {turn === 'red' ? '🔴 BÊN ĐỎ' : '⚫ BÊN ĐEN'}
+                  {turn === playerSide ? ' (Lượt của bạn)' : ' (Lượt đối thủ)'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <span className="block text-xs font-bold text-stone-900 font-serif">BÊN ĐEN</span>
+                  <span className="text-sm font-bold text-[#442a22]">
+                    {playerSide === 'black' ? `${currentUsername} ⭐️ (Bạn)` : opponentUsername}
+                  </span>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-stone-900 border border-stone-900 flex items-center justify-center text-white font-bold">
+                  <UserIcon className="w-5 h-5" />
+                </div>
               </div>
             </div>
 
@@ -600,18 +692,19 @@ export const RoomsPage: React.FC = () => {
                   selectedPos={selectedPos}
                   validMoves={validMoves}
                   lastMove={lastMove}
-                  hintMove={hintMove}
+                  hintMove={null}
                   onSquareClick={handleSquareClick}
                   boardType={boardType}
                   pieceStyle={pieceStyle}
+                  playerSide={playerSide}
                 />
 
                 <BoardControls
-                  onUndo={handleUndo}
-                  onHint={() => message.info('Tính năng gợi ý tạm khóa ở phòng thi đấu trực tiếp')}
+                  onUndo={() => message.info('Vui lòng thương lượng với đối thủ để xin đi lại')}
+                  onHint={() => message.info('Không thể dùng gợi ý AI trong trận đấu phòng riêng!')}
                   onResign={handleConfirmExitMatch}
-                  onRestart={() => handleEnterMatchLobby(activeRoomCode || '123456')}
-                  canUndo={fenHistory.length > 1}
+                  onRestart={handleNextRound}
+                  canUndo={false}
                 />
               </div>
 
@@ -625,7 +718,6 @@ export const RoomsPage: React.FC = () => {
                   playerSide={playerSide}
                   onSelectBoard={(b) => setBoardType(b)}
                   onSelectPieceStyle={(s) => setPieceStyle(s)}
-                  onSelectSide={(s) => setPlayerSide(s)}
                   hideSideSelection={true}
                 />
               </div>

@@ -21,17 +21,20 @@ export interface AIDifficultyOption {
 
 export interface AIMoveRequest {
   fen: string;
+  difficulty?: AIDifficultyLevel;
 }
 
 export interface AIMoveResponse {
   bestMove: string;
   evaluationScore: number;
-  newFen: string;
+  newFen?: string;
   nodesVisited?: number;
+  depth?: number;
 }
 
 export interface AIHintRequest {
   fen: string;
+  difficulty?: AIDifficultyLevel;
 }
 
 export interface AIHintResponse {

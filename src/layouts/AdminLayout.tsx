@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from '@/components/layouts/Sidebar';
 import { AppHeader } from '@/components/layouts/AppHeader';
 import AdminRoute from '@/components/auth/AdminRoute';
+import { PageTransition } from '@/components/ui/PageTransition';
 
 export const AdminLayout: React.FC = () => {
   return (
@@ -16,7 +17,9 @@ export const AdminLayout: React.FC = () => {
 
         {/* Main Content Area */}
         <main className="md:pl-64 pt-16 min-h-screen">
-          <Outlet />
+          <PageTransition>
+            <Outlet />
+          </PageTransition>
         </main>
       </div>
     </AdminRoute>

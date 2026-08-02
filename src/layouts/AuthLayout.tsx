@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { AuthHeader } from '@/components/layouts/AuthHeader';
 import { AuthFooter } from '@/components/layouts/AuthFooter';
 import { useAuthStore } from '@/store/auth.store';
+import { PageTransition } from '@/components/ui/PageTransition';
 
 export const AuthLayout: React.FC = () => {
   const { user, isAuthenticated } = useAuthStore();
@@ -18,7 +19,9 @@ export const AuthLayout: React.FC = () => {
     <div className="min-h-screen flex flex-col justify-between bg-white antialiased">
       <AuthHeader />
       <main className="flex-1 flex flex-col">
-        <Outlet />
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
       </main>
       <AuthFooter />
     </div>

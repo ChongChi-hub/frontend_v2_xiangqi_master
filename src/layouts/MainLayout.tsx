@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { Sidebar } from '@/components/layouts/Sidebar';
 import { AppHeader } from '@/components/layouts/AppHeader';
 import { useAuthStore } from '@/store/auth.store';
+import { PageTransition } from '@/components/ui/PageTransition';
 
 export const MainLayout: React.FC = () => {
   const { user, isAuthenticated } = useAuthStore();
@@ -24,7 +25,9 @@ export const MainLayout: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="md:pl-64 pt-16 min-h-screen">
-        <Outlet />
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
       </main>
     </div>
   );

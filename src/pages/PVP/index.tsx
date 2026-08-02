@@ -20,13 +20,26 @@ import { MoveHistory } from '@/components/PVE/MoveHistory';
 import { BoardSettings } from '@/components/PVE/BoardSettings';
 import socketService, { type MoveMadeData, type MatchEndedData } from '@/services/socket.service';
 import { useAuthStore } from '@/store/auth.store';
+import { useUserProfile } from '@/hooks/useUser';
 import type { BoardType, PieceStyle } from '@/types/ai';
 
 export const PvpPage: React.FC = () => {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const currentUser = useAuthStore((state) => state.user);
+
+  const authUser = useAuthStore((state) => state.user);
+  const { data: profileData } = useUserProfile();
+
+  // Safely extract User ID from all possible profile/auth payloads
+  const currentUserId =
+    profileData?.user?.id ||
+    (profileData as unknown as { userId?: string })?.userId ||
+    authUser?.id ||
+    (authUser as unknown as { userId?: string })?.userId ||
+    '';
+
+  const currentUsername = profileData?.user?.username || authUser?.username || 'Kỳ Thủ';
 
   // Match initial info from router state if available
   const initialMatchData = location.state as {
@@ -35,6 +48,18 @@ export const PvpPage: React.FC = () => {
     blackPlayerId?: string;
     fen?: string;
   } | null;
+
+  // Determine My Side (Red or Black) reliably
+  const matchRedPlayerId = initialMatchData?.redPlayerId;
+  const matchBlackPlayerId = initialMatchData?.blackPlayerId;
+
+  const isRedPlayer = matchRedPlayerId && currentUserId
+    ? matchRedPlayerId === currentUserId
+    : matchBlackPlayerId && currentUserId
+    ? matchBlackPlayerId !== currentUserId
+    : true; // Default Red if undetermined
+
+  const playerSide: 'red' | 'black' = isRedPlayer ? 'red' : 'black';
 
   // Board settings
   const [boardType, setBoardType] = useState<BoardType>('wood');
@@ -50,10 +75,6 @@ export const PvpPage: React.FC = () => {
   const [lastMove, setLastMove] = useState<{ from: Position; to: Position } | null>(null);
   const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
   const [gameResult, setGameResult] = useState<string | null>(null);
-
-  // My Side determination (Red or Black)
-  const isRedPlayer = initialMatchData?.redPlayerId === currentUser?.id;
-  const playerSide = isRedPlayer ? 'red' : 'black';
 
   const applyOpponentMove = useCallback(
     (moveStr: string, newFen: string) => {
@@ -88,7 +109,6 @@ export const PvpPage: React.FC = () => {
         setMoveHistory((prev) => [...prev, moveRec]);
       }
 
-
       setTurn((prev) => (prev === 'red' ? 'black' : 'red'));
     },
     [boardState]
@@ -103,13 +123,13 @@ export const PvpPage: React.FC = () => {
     socketService.joinRoom(roomId);
 
     const handleMoveMade = (data: MoveMadeData) => {
-      if (data.playerId !== currentUser?.id) {
+      if (data.playerId !== currentUserId) {
         applyOpponentMove(data.moveStr, data.fen);
       }
     };
 
     const handleMatchEnded = (data: MatchEndedData) => {
-      const isWinner = data.winnerId === currentUser?.id;
+      const isWinner = data.winnerId === currentUserId;
       setGameResult(isWinner ? 'VICTORY' : 'DEFEAT');
       if (isWinner) {
         message.success('Chúc mừng! Bạn đã giành chiến thắng trong trận đấu này!');
@@ -126,7 +146,7 @@ export const PvpPage: React.FC = () => {
       socket.off('match_ended', handleMatchEnded);
       socketService.leaveRoom(roomId);
     };
-  }, [matchId, currentUser?.id, applyOpponentMove]);
+  }, [matchId, currentUserId, applyOpponentMove]);
 
   // Handle Square Clicks
   const handleSquareClick = (pos: Position) => {
@@ -253,7 +273,7 @@ export const PvpPage: React.FC = () => {
             <div className="text-left">
               <span className="block text-xs font-bold text-red-800 font-serif">BÊN ĐỎ (Đi trước)</span>
               <span className="text-sm font-bold text-[#442a22]">
-                {isRedPlayer ? `${currentUser?.username} (Bạn)` : 'Đối thủ Đỏ'}
+                {isRedPlayer ? `${currentUsername} (Bạn)` : 'Đối thủ Đỏ'}
               </span>
             </div>
           </div>
@@ -276,7 +296,7 @@ export const PvpPage: React.FC = () => {
             <div className="text-right">
               <span className="block text-xs font-bold text-stone-900 font-serif">BÊN ĐEN (Đi sau)</span>
               <span className="text-sm font-bold text-[#442a22]">
-                {!isRedPlayer ? `${currentUser?.username} (Bạn)` : 'Đối thủ Đen'}
+                {!isRedPlayer ? `${currentUsername} (Bạn)` : 'Đối thủ Đen'}
               </span>
             </div>
             <div className="w-10 h-10 rounded-full bg-stone-900 border border-stone-900 flex items-center justify-center text-white font-bold">

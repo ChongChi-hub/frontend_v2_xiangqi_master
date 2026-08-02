@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, message } from 'antd';
 import {
   Lock,
@@ -12,7 +12,6 @@ import {
   Radio,
   LogOut,
   Trophy,
-  RotateCcw,
   User as UserIcon,
   Flag,
   Handshake,
@@ -32,7 +31,6 @@ import {
   parseUciMove,
 } from '@/utils/xiangqi';
 import { XiangqiBoard } from '@/components/PVE/XiangqiBoard';
-import { BoardControls } from '@/components/PVE/BoardControls';
 import { MoveHistory } from '@/components/PVE/MoveHistory';
 import { BoardSettings } from '@/components/PVE/BoardSettings';
 import socketService, { type MoveMadeData } from '@/services/socket.service';
@@ -109,8 +107,8 @@ export const RoomsPage: React.FC = () => {
   const redScore = roomState?.state.hostAssignedSide === 'red' ? roomState?.state.score.host : roomState?.state.score.guest;
   const blackScore = roomState?.state.hostAssignedSide === 'black' ? roomState?.state.score.host : roomState?.state.score.guest;
 
-  const playerScore = isHost ? roomState?.state.score.host : roomState?.state.score.guest;
-  const opponentScore = isHost ? roomState?.state.score.guest : roomState?.state.score.host;
+  const playerScore = isHost ? (roomState?.state.score.host ?? 0) : (roomState?.state.score.guest ?? 0);
+  const opponentScore = isHost ? (roomState?.state.score.guest ?? 0) : (roomState?.state.score.host ?? 0);
   
   const isPlayerReady = isHost ? roomState?.state.hostReady : roomState?.state.guestReady;
   const isOpponentReady = isHost ? roomState?.state.guestReady : roomState?.state.hostReady;

@@ -5,6 +5,7 @@ import { useLocation } from 'react-router-dom';
 
 interface PageTransitionProps {
   children: React.ReactNode;
+  className?: string;
 }
 
 const pageVariants = {
@@ -28,7 +29,7 @@ const pageTransition: Transition = {
   duration: 0.3,
 };
 
-export const PageTransition: React.FC<PageTransitionProps> = ({ children }) => {
+export const PageTransition: React.FC<PageTransitionProps> = ({ children, className = "w-full h-full" }) => {
   const location = useLocation();
 
   return (
@@ -39,7 +40,7 @@ export const PageTransition: React.FC<PageTransitionProps> = ({ children }) => {
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="w-full h-full"
+      className={className}
     >
       {children}
     </motion.div>

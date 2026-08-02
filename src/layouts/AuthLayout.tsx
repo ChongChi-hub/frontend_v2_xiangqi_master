@@ -19,7 +19,7 @@ export const AuthLayout: React.FC = () => {
     <div className="min-h-screen flex flex-col justify-between bg-white antialiased">
       <AuthHeader />
       <main className="flex-1 flex flex-col">
-        <PageTransition>
+        <PageTransition className="flex-1 flex flex-col w-full">
           <Outlet />
         </PageTransition>
       </main>

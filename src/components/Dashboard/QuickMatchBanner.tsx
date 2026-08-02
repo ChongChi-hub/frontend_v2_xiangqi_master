@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Swords, Loader2, XCircle, Users } from 'lucide-react';
+import { Swords, Loader2, XCircle } from 'lucide-react';
 import { message } from 'antd';
 
 interface QuickMatchBannerProps {
   onFindMatch?: () => void;
   onCancelMatch?: () => void;
-  onCreateRoom?: () => void;
   isSearchingExternal?: boolean;
 }
 
 export const QuickMatchBanner: React.FC<QuickMatchBannerProps> = ({
   onFindMatch,
   onCancelMatch,
-  onCreateRoom,
   isSearchingExternal = false,
 }) => {
   const [internalSearching, setInternalSearching] = useState(false);
@@ -41,7 +39,7 @@ export const QuickMatchBanner: React.FC<QuickMatchBannerProps> = ({
       if (onCancelMatch) onCancelMatch();
     } else {
       setInternalSearching(true);
-      message.success('Đang tìm kiếm đối thủ PvP qua Internet...');
+      message.success('Đang tìm kiếm đối thủ PvP...');
       if (onFindMatch) onFindMatch();
     }
   };
@@ -53,61 +51,41 @@ export const QuickMatchBanner: React.FC<QuickMatchBannerProps> = ({
   };
 
   return (
-    <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      {/* Quick PvP Matchmaking Banner (2 cols) */}
-      <div className="sm:col-span-2">
-        <button
-          type="button"
-          onClick={handleToggleMatchmaking}
-          className={`w-full h-full group rounded-2xl p-6 flex flex-col items-center justify-center gap-2.5 transition-all duration-300 transform active:scale-[0.99] shadow-md border cursor-pointer ${
-            isSearching
-              ? 'bg-[#ba1a1a] hover:bg-[#93000a] text-white border-[#ba1a1a] animate-pulse'
-              : 'bg-[#5d4037] hover:bg-[#442a22] text-[#ffffff] border-[#442a22]'
-          }`}
-        >
-          {isSearching ? (
-            <>
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-9 h-9 animate-spin" />
-                <XCircle className="w-5 h-5 opacity-80 group-hover:scale-125 transition-transform" />
-              </div>
-              <span className="font-serif text-xl font-bold uppercase tracking-[0.15em]">
-                ĐANG TÌM TRẬN ({formatSeconds(searchSeconds)})
-              </span>
-              <span className="text-xs font-medium opacity-90 font-sans">
-                Bấm vào đây để HỦY TÌM TRẬN
-              </span>
-            </>
-          ) : (
-            <>
-              <Swords className="w-10 h-10 group-hover:scale-110 transition-transform" />
-              <span className="font-serif text-xl font-bold uppercase tracking-[0.15em]">
-                TÌM TRẬN INTERNET PVP
-              </span>
-              <span className="text-xs font-semibold opacity-80 font-sans">
-                Ghép đấu tự động qua mạng Internet (~30s)
-              </span>
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* Create Custom Room Card (1 col) */}
-      <div className="sm:col-span-1">
-        <button
-          type="button"
-          onClick={onCreateRoom}
-          className="w-full h-full group bg-white hover:bg-[#f6f3f2] text-[#361e15] border-2 border-[#d4c3be] hover:border-[#361e15] rounded-2xl p-6 flex flex-col items-center justify-center gap-2 transition-all duration-300 shadow-sm cursor-pointer"
-        >
-          <div className="w-12 h-12 rounded-full bg-[#361e15]/10 flex items-center justify-center text-[#361e15] group-hover:scale-110 transition-transform">
-            <Users className="w-6 h-6" />
-          </div>
-          <span className="font-serif text-lg font-bold">TẠO PHÒNG CHƠI</span>
-          <span className="text-xs text-[#504441] font-sans font-medium text-center">
-            Mã phòng riêng tư & Nhập mã bạn bè
-          </span>
-        </button>
-      </div>
+    <section>
+      <button
+        type="button"
+        onClick={handleToggleMatchmaking}
+        className={`w-full group rounded-2xl p-8 flex flex-col items-center justify-center gap-3 transition-all duration-300 transform active:scale-[0.99] shadow-md border cursor-pointer ${
+          isSearching
+            ? 'bg-[#ba1a1a] hover:bg-[#93000a] text-white border-[#ba1a1a] animate-pulse'
+            : 'bg-[#5d4037] hover:bg-[#442a22] text-[#ffffff] border-[#442a22]'
+        }`}
+      >
+        {isSearching ? (
+          <>
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-10 h-10 animate-spin" />
+              <XCircle className="w-6 h-6 opacity-80 group-hover:scale-125 transition-transform" />
+            </div>
+            <span className="font-serif text-2xl font-bold uppercase tracking-[0.15em]">
+              ĐANG TÌM TRẬN ({formatSeconds(searchSeconds)})
+            </span>
+            <span className="text-sm font-medium opacity-90 font-sans">
+              Bấm vào đây để HỦY TÌM TRẬN
+            </span>
+          </>
+        ) : (
+          <>
+            <Swords className="w-12 h-12 group-hover:scale-110 transition-transform" />
+            <span className="font-serif text-2xl font-bold uppercase tracking-[0.2em]">
+              TÌM TRẬN XẾP HẠNG
+            </span>
+            <span className="text-xs font-semibold opacity-80 font-sans">
+              Ước tính thời gian chờ: ~30 giây
+            </span>
+          </>
+        )}
+      </button>
     </section>
   );
 };

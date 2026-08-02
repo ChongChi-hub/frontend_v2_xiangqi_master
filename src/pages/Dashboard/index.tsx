@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useUserProfile, useLeaderboard } from '@/hooks/useUser';
 import { useAuthStore } from '@/store/auth.store';
@@ -6,15 +6,12 @@ import { ProfileSection } from '@/components/Dashboard/ProfileSection';
 import { QuickMatchBanner } from '@/components/Dashboard/QuickMatchBanner';
 import { GameModesGrid } from '@/components/Dashboard/GameModesGrid';
 import { LeaderboardSidebar } from '@/components/Dashboard/LeaderboardSidebar';
-import { CreateRoomModal } from '@/components/Dashboard/CreateRoomModal';
 import { Gamepad2, Cpu, History, Trophy } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
   const authStoreUser = useAuthStore((state) => state.user);
   const { data: profileData, isLoading: isProfileLoading } = useUserProfile();
   const { data: leaderboardData, isLoading: isLeaderboardLoading } = useLeaderboard();
-
-  const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
 
   const user = profileData?.user || authStoreUser;
   const username = user?.username || 'Kỳ Thủ';
@@ -30,8 +27,8 @@ export const DashboardPage: React.FC = () => {
             {/* Profile Section */}
             <ProfileSection user={user} isLoading={isProfileLoading && !authStoreUser} />
 
-            {/* Quick Match Banner with Create Room Button */}
-            <QuickMatchBanner onCreateRoom={() => setIsCreateRoomOpen(true)} />
+            {/* Quick Match Banner */}
+            <QuickMatchBanner />
 
             {/* Game Modes Grid */}
             <GameModesGrid />
@@ -48,12 +45,6 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Create / Join Room Modal */}
-      <CreateRoomModal
-        isOpen={isCreateRoomOpen}
-        onClose={() => setIsCreateRoomOpen(false)}
-      />
 
       {/* Mobile Bottom Navigation Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 w-full bg-[#ffffff] border-t border-[#d4c3be] flex justify-around items-center py-2 z-50 shadow-lg">

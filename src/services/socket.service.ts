@@ -191,6 +191,24 @@ class SocketService {
       this.socket.emit('resign', { matchId });
     }
   }
+
+  public sendGameEnded(matchId: string, gameState: string): void {
+    if (this.socket) {
+      this.socket.emit('game_ended', { matchId, gameState });
+    }
+  }
+
+  public offerDraw(matchId: string): void {
+    if (this.socket) {
+      this.socket.emit('offer_draw', { matchId });
+    }
+  }
+
+  public respondDraw(matchId: string, accept: boolean): void {
+    if (this.socket) {
+      this.socket.emit('respond_draw', { matchId, accept });
+    }
+  }
 }
 
 export const socketService = new SocketService();

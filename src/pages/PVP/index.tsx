@@ -89,43 +89,34 @@ export const PvpPage: React.FC = () => {
   const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
   const [gameResult, setGameResult] = useState<string | null>(null);
 
-  const applyOpponentMove = useCallback(
-    (moveStr: string, newFen: string) => {
-      const parsed = parseUciMove(moveStr);
-      if (!parsed) {
-        const { board } = fenToBoard(newFen);
-        setBoardState(board);
-        return;
-      }
+  // Apply opponent's move reliably without closure stale state
+  const applyOpponentMove = useCallback((moveStr: string, newFen: string) => {
+    const { board, turn: nextTurn } = fenToBoard(newFen);
+    const parsed = parseUciMove(moveStr);
 
+    setBoardState(board);
+    setTurn(nextTurn);
+    setSelectedPos(null);
+    setValidMoves([]);
+
+    if (parsed) {
       const { from, to } = parsed;
-      const movingPiece = boardState[from.row][from.col];
-      const capturedPiece = boardState[to.row][to.col];
-
-      const nextBoard = boardState.map((row) => [...row]);
-      nextBoard[to.row][to.col] = movingPiece;
-      nextBoard[from.row][from.col] = null;
-
-      setBoardState(nextBoard);
       setLastMove({ from, to });
-      setSelectedPos(null);
-      setValidMoves([]);
 
-      if (movingPiece) {
-        const moveRec: MoveRecord = {
-          from,
-          to,
-          piece: movingPiece,
-          captured: capturedPiece,
-          moveStr,
-        };
-        setMoveHistory((prev) => [...prev, moveRec]);
+      const piece = board[to.row][to.col];
+      if (piece) {
+        setMoveHistory((prev) => [
+          ...prev,
+          {
+            from,
+            to,
+            piece,
+            moveStr,
+          },
+        ]);
       }
-
-      setTurn((prev) => (prev === 'red' ? 'black' : 'red'));
-    },
-    [boardState]
-  );
+    }
+  }, []);
 
   // Connect socket room & listen for match info, moves & match end
   useEffect(() => {
@@ -153,8 +144,9 @@ export const PvpPage: React.FC = () => {
         fen: info.fen,
       });
 
-      const { board } = fenToBoard(info.fen);
+      const { board, turn: fenTurn } = fenToBoard(info.fen);
       setBoardState(board);
+      setTurn(fenTurn);
     };
 
     const handleMoveMade = (data: MoveMadeData) => {
@@ -243,6 +235,7 @@ export const PvpPage: React.FC = () => {
         const nextFen = boardToFen(nextBoard, nextTurn);
 
         setBoardState(nextBoard);
+        setTurn(nextTurn);
         setLastMove({ from, to });
         setSelectedPos(null);
         setValidMoves([]);
@@ -255,7 +248,6 @@ export const PvpPage: React.FC = () => {
           moveStr,
         };
         setMoveHistory((prev) => [...prev, moveRec]);
-        setTurn(nextTurn);
 
         // Send move to server over socket
         if (matchId) {

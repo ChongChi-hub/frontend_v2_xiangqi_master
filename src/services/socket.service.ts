@@ -55,11 +55,11 @@ class SocketService {
       console.log('[SocketService] Connected to Xiangqi Server with socket:', this.socket?.id);
     });
 
-    this.socket.on('disconnect', (reason) => {
-      console.log('[SocketService] Disconnected:', reason);
+    this.socket.on('disconnect', (reason: string) => {
+      console.log('🔌 Socket disconnected:', reason);
     });
 
-    this.socket.on('connect_error', (error) => {
+    this.socket.on('connect_error', (error: Error) => {
       console.error('[SocketService] Connection Error:', error);
     });
 
@@ -111,6 +111,73 @@ class SocketService {
     socket.emit('get_match_info', { matchId });
   }
 
+  // --- Private Room Methods ---
+
+  public createPrivateRoom(settings: { totalRounds: number; hostSide: 'random' | 'red' | 'black' }): void {
+    const socket = this.connect();
+    console.log('[SocketService] Emitting create_private_room...', settings);
+    socket.emit('create_private_room', settings);
+  }
+
+  public joinPrivateRoom(roomCode: string): void {
+    const socket = this.connect();
+    console.log(`[SocketService] Emitting join_private_room for ${roomCode}...`);
+    socket.emit('join_private_room', { roomCode });
+  }
+
+  public cancelPrivateRoom(roomCode: string): void {
+    if (this.socket) {
+      console.log(`[SocketService] Emitting cancel_private_room for ${roomCode}...`);
+      this.socket.emit('cancel_private_room', { roomCode });
+    }
+  }
+
+  public leavePrivateRoom(roomCode: string): void {
+    if (this.socket) {
+      console.log(`[SocketService] Emitting leave_private_room for ${roomCode}...`);
+      this.socket.emit('leave_private_room', { roomCode });
+    }
+  }
+
+  public sendPrivateMove(roomCode: string, fen: string, moveStr: string, nextTurn: 'red' | 'black'): void {
+    if (this.socket) {
+      console.log(`[SocketService] Emitting private_make_move for room ${roomCode}: ${moveStr}`);
+      this.socket.emit('private_make_move', { roomCode, fen, moveStr, nextTurn });
+    }
+  }
+
+  public sendPrivateGameEnded(roomCode: string, winnerId: string | null, reason: string): void {
+    if (this.socket) {
+      this.socket.emit('private_game_ended', { roomCode, winnerId, reason });
+    }
+  }
+
+  public offerPrivateDraw(roomCode: string): void {
+    if (this.socket) {
+      this.socket.emit('offer_draw', { roomCode });
+    }
+  }
+
+  public respondPrivateDraw(roomCode: string, accept: boolean): void {
+    if (this.socket) {
+      this.socket.emit('respond_draw', { roomCode, accept });
+    }
+  }
+
+  public resignPrivateMatch(roomCode: string): void {
+    if (this.socket) {
+      this.socket.emit('resign_private_match', { roomCode });
+    }
+  }
+
+  public readyNextPrivateRound(roomCode: string): void {
+    if (this.socket) {
+      this.socket.emit('ready_next_round', { roomCode });
+    }
+  }
+
+  // --- End Private Room Methods ---
+
   public sendMove(matchId: string, fen: string, moveStr: string, timeCost: number = 0): void {
     if (this.socket) {
       console.log(`[SocketService] Emitting make_move for match ${matchId}: ${moveStr}`);
@@ -122,6 +189,24 @@ class SocketService {
     if (this.socket) {
       console.log(`[SocketService] Emitting resign for match ${matchId}`);
       this.socket.emit('resign', { matchId });
+    }
+  }
+
+  public sendGameEnded(matchId: string, gameState: string): void {
+    if (this.socket) {
+      this.socket.emit('game_ended', { matchId, gameState });
+    }
+  }
+
+  public offerDraw(matchId: string): void {
+    if (this.socket) {
+      this.socket.emit('offer_draw', { matchId });
+    }
+  }
+
+  public respondDraw(matchId: string, accept: boolean): void {
+    if (this.socket) {
+      this.socket.emit('respond_draw', { matchId, accept });
     }
   }
 }

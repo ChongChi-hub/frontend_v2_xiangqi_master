@@ -33,3 +33,47 @@
   background-image: radial-gradient(#e5dfd5 1px, transparent 1px);
   background-size: 28px 28px;
 }
+
+/* Animations */
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: flex;
+  white-space: nowrap;
+  animation: marquee 30s linear infinite;
+}
+
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+
+.custom-leaderboard-table .ant-table-thead > tr > th {
+  background-color: #f6f3f2 !important;
+  color: #442a22 !important;
+  font-weight: 700 !important;
+  border-bottom: 2px solid #d4c3be !important;
+}
+
+.custom-leaderboard-table .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #d4c3be80 !important;
+}
+

@@ -29,7 +29,7 @@ export const AvatarBadge: React.FC<AvatarBadgeProps> = ({
   };
 
   const defaultAvatar =
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuBUv5WYpYueb_kCjyoHc3kjDQLGlPUTF9lIqaiFdCNfW0B2U-GN_VIl9TkJgh3QEtCMiNvX299saFC2DbAoxNKWXvZO7XnW6l2lKDmqrN3VQzOC2AK18V6dB3V2w7I2uQg2KVZpj3HJsGkNaQFKG1W9yYDWrwH3IgsX1CNCPI3TdU1lYqxRhZTRWWpjaOvMIH3VAsLtKJF8d-h0yh2OHh87SKVogIT_uQKSxZZfVbuSO3xvqpGVRk_Q';
+    'https://res.cloudinary.com/znkrqbvm/image/upload/v1785675573/xiangqi_avatars/vlbrdpdmurh7mwtmqbxt.png';
 
   return (
     <div className="relative inline-block shrink-0">

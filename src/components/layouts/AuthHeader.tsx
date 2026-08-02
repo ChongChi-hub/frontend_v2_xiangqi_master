@@ -53,9 +53,13 @@ export const AuthHeader: React.FC = () => {
             <div
               onClick={() => navigate('/dashboard')}
               title={user.username || 'Sảnh đấu'}
-              className="w-9 h-9 rounded-full bg-[#e4e2dd] border border-[#d4c3be] flex items-center justify-center cursor-pointer hover:bg-[#e1dfdb] transition-colors"
+              className="w-9 h-9 rounded-full bg-[#e4e2dd] border border-[#d4c3be] flex items-center justify-center cursor-pointer hover:bg-[#e1dfdb] transition-colors overflow-hidden"
             >
-              <UserIcon className="w-5 h-5 text-[#442a22]" />
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.username} className="w-full h-full object-cover" />
+              ) : (
+                <UserIcon className="w-5 h-5 text-[#442a22]" />
+              )}
             </div>
 
             <button
@@ -77,7 +81,7 @@ export const AuthHeader: React.FC = () => {
                   : 'text-[#361e15] hover:bg-[#361e15]/10 px-4 py-2 rounded-lg border border-[#361e15]/20 transition-all text-xs font-semibold'
               }
             >
-              Sign In
+              Đăng nhập
             </Link>
             <Link
               to="/register"
@@ -87,7 +91,7 @@ export const AuthHeader: React.FC = () => {
                   : 'text-[#361e15] hover:bg-[#361e15]/10 px-4 py-2 rounded-lg border border-[#361e15]/20 transition-all text-xs font-semibold'
               }
             >
-              Register
+              Đăng ký
             </Link>
           </>
         )}

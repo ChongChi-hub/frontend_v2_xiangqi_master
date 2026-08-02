@@ -1,20 +1,24 @@
-import React, { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { message } from 'antd';
 import { useUserProfile, useLeaderboard } from '@/hooks/useUser';
 import { useAuthStore } from '@/store/auth.store';
+import { useMatchStore } from '@/store/match.store';
 import { ProfileSection } from '@/components/Dashboard/ProfileSection';
 import { QuickMatchBanner } from '@/components/Dashboard/QuickMatchBanner';
 import { GameModesGrid } from '@/components/Dashboard/GameModesGrid';
 import { LeaderboardSidebar } from '@/components/Dashboard/LeaderboardSidebar';
+import PvpPage from '@/pages/PVP';
 import socketService, { type MatchFoundData } from '@/services/socket.service';
 import { Gamepad2, Cpu, History, Trophy } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
-  const navigate = useNavigate();
   const authStoreUser = useAuthStore((state) => state.user);
   const { data: profileData, isLoading: isProfileLoading } = useUserProfile();
   const { data: leaderboardData, isLoading: isLeaderboardLoading } = useLeaderboard();
+  const { activeMatch, setActiveMatch, clearActiveMatch } = useMatchStore();
+
+  const [activeMatchData, setActiveMatchData] = useState<MatchFoundData | null>(activeMatch);
 
   const user = profileData?.user || authStoreUser;
   const username = user?.username || 'Kỳ Thủ';
@@ -26,8 +30,9 @@ export const DashboardPage: React.FC = () => {
 
     const handleMatchFound = (data: MatchFoundData) => {
       console.log('[Dashboard] Match Found Event Received:', data);
-      message.success('Đã tìm thấy đối thủ PvP! Đang khởi tạo bàn cờ...');
-      navigate(`/pvp/${data.matchId}`, { state: data });
+      message.success('Đã tìm thấy đối thủ PvP! Ván đấu bắt đầu ngay tại Sảnh...');
+      setActiveMatchData(data);
+      setActiveMatch(data);
     };
 
     socket.on('match_found', handleMatchFound);
@@ -35,38 +40,49 @@ export const DashboardPage: React.FC = () => {
     return () => {
       socket.off('match_found', handleMatchFound);
     };
-  }, [navigate]);
+  }, [setActiveMatch]);
 
   return (
     <div className="w-full min-h-screen bg-[#fcf9f8] text-[#1b1c1c] pb-16 md:pb-8">
-      {/* Main Content Layout (12-column grid on Desktop, 1 column on Mobile) */}
       <div className="max-w-[1400px] mx-auto w-full px-4 sm:px-8 md:px-16 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Main Area (8 cols on Desktop) */}
-          <div className="lg:col-span-8 space-y-8">
-            {/* Profile Section */}
-            <ProfileSection user={user} isLoading={isProfileLoading && !authStoreUser} />
+        {/* If Active Match is in progress, render PVP Chess Arena directly inside Sảnh Đấu */}
+        {activeMatchData ? (
+          <PvpPage
+            initialMatchDataOverride={activeMatchData}
+            onMatchEndComplete={() => {
+              setActiveMatchData(null);
+              clearActiveMatch();
+            }}
+          />
+        ) : (
+          /* Standard Dashboard Lobby Layout */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Main Area (8 cols on Desktop) */}
+            <div className="lg:col-span-8 space-y-8">
+              {/* Profile Section */}
+              <ProfileSection user={user} isLoading={isProfileLoading && !authStoreUser} />
 
-            {/* Quick Match Banner connected to Socket.io */}
-            <QuickMatchBanner
-              onFindMatch={() => socketService.findMatch()}
-              onCancelMatch={() => socketService.cancelFindMatch()}
-            />
+              {/* Quick Match Banner connected to Socket.io */}
+              <QuickMatchBanner
+                onFindMatch={() => socketService.findMatch()}
+                onCancelMatch={() => socketService.cancelFindMatch()}
+              />
 
-            {/* Game Modes Grid */}
-            <GameModesGrid />
+              {/* Game Modes Grid */}
+              <GameModesGrid />
+            </div>
+
+            {/* Right Sidebar: Leaderboard (4 cols on Desktop) */}
+            <div className="lg:col-span-4">
+              <LeaderboardSidebar
+                items={leaderboardData?.leaderboard}
+                currentUserElo={eloScore}
+                currentUsername={`${username} (Bạn)`}
+                isLoading={isLeaderboardLoading}
+              />
+            </div>
           </div>
-
-          {/* Right Sidebar: Leaderboard (4 cols on Desktop) */}
-          <div className="lg:col-span-4">
-            <LeaderboardSidebar
-              items={leaderboardData?.leaderboard}
-              currentUserElo={eloScore}
-              currentUsername={`${username} (Bạn)`}
-              isLoading={isLeaderboardLoading}
-            />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Mobile Bottom Navigation Bar */}

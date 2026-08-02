@@ -626,6 +626,7 @@ export const RoomsPage: React.FC = () => {
                   onSelectBoard={(b) => setBoardType(b)}
                   onSelectPieceStyle={(s) => setPieceStyle(s)}
                   onSelectSide={(s) => setPlayerSide(s)}
+                  hideSideSelection={true}
                 />
               </div>
             </div>

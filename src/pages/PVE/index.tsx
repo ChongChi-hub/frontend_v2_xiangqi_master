@@ -12,6 +12,7 @@ import {
   getLegalMoves,
   formatUciMove,
   parseUciMove,
+  checkGameOver,
 } from '@/utils/xiangqi';
 import { XiangqiBoard } from '@/components/PVE/XiangqiBoard';
 import { EvaluationBar } from '@/components/PVE/EvaluationBar';
@@ -46,6 +47,7 @@ export const PvePage: React.FC = () => {
   const [evaluationScore, setEvaluationScore] = useState<number>(0.0);
   const [isAiThinking, setIsAiThinking] = useState<boolean>(false);
   const [isHintLoading, setIsHintLoading] = useState<boolean>(false);
+  const [winner, setWinner] = useState<'red' | 'black' | null>(null);
 
   // Trigger Pikafish AI move
   const makeAiMove = async (currentFen: string) => {
@@ -71,26 +73,38 @@ export const PvePage: React.FC = () => {
             nextBoard[to.row][to.col] = piece;
             nextBoard[from.row][from.col] = null;
 
-            if (piece) {
-              const moveRec: MoveRecord = {
-                from,
-                to,
-                piece,
-                captured: destPiece,
-                moveStr: res.bestMove,
-              };
-              setMoveHistory((prev) => [...prev, moveRec]);
-              const newFen = boardToFen(nextBoard, 'red');
-              setFenHistory((prev) => [...prev, newFen]);
-            }
-            return nextBoard;
-          });
+              if (piece) {
+                const moveRec: MoveRecord = {
+                  from,
+                  to,
+                  piece,
+                  captured: destPiece,
+                  moveStr: res.bestMove,
+                };
+                setMoveHistory((prev) => [...prev, moveRec]);
+                const newFen = boardToFen(nextBoard, 'red');
+                setFenHistory((prev) => [...prev, newFen]);
+              }
+              return nextBoard;
+            });
 
-          setLastMove({ from, to });
-          setTurn('red');
+            setLastMove({ from, to });
+            
+            // Check win condition after AI move
+            const nextBoardForCheck = boardState.map(r => [...r]);
+            const p = nextBoardForCheck[from.row][from.col];
+            nextBoardForCheck[to.row][to.col] = p;
+            nextBoardForCheck[from.row][from.col] = null;
+            const gameWinner = checkGameOver(nextBoardForCheck);
+            if (gameWinner) {
+              setWinner(gameWinner);
+              message.success(`Trận đấu kết thúc! ${gameWinner === 'red' ? 'Đỏ' : 'Đen'} thắng.`);
+            } else {
+              setTurn('red');
+            }
+          }
         }
-      }
-    } catch (err) {
+      } catch (err) {
       console.error('Error fetching AI move:', err);
       message.error('Không thể kết nối Pikafish Engine AI');
     } finally {
@@ -100,7 +114,7 @@ export const PvePage: React.FC = () => {
 
   // Handle Square Clicks by Player
   const handleSquareClick = (pos: Position) => {
-    if (isAiThinking || turn !== 'red') return;
+    if (isAiThinking || turn !== 'red' || winner) return;
 
     const clickedPiece = boardState[pos.row][pos.col];
     const clickedColor = getPieceColor(clickedPiece);
@@ -147,6 +161,15 @@ export const PvePage: React.FC = () => {
 
         const nextFen = boardToFen(nextBoard, 'black');
         setFenHistory((prev) => [...prev, nextFen]);
+        
+        // Check win condition after player move
+        const gameWinner = checkGameOver(nextBoard);
+        if (gameWinner) {
+          setWinner(gameWinner);
+          message.success(`Trận đấu kết thúc! ${gameWinner === 'red' ? 'Đỏ' : 'Đen'} thắng.`);
+          return;
+        }
+
         setTurn('black');
 
         // Request AI move for Black
@@ -160,7 +183,7 @@ export const PvePage: React.FC = () => {
 
   // Handle AI Hint Request
   const handleHint = async () => {
-    if (isAiThinking || isHintLoading) return;
+    if (isAiThinking || isHintLoading || winner) return;
 
     const currentFen = boardToFen(boardState, turn);
     setIsHintLoading(true);
@@ -206,6 +229,7 @@ export const PvePage: React.FC = () => {
     setValidMoves([]);
     setLastMove(null);
     setHintMove(null);
+    setWinner(null);
     message.success('Đã đi lại 1 nước!');
   };
 
@@ -221,6 +245,7 @@ export const PvePage: React.FC = () => {
     setLastMove(null);
     setHintMove(null);
     setEvaluationScore(0.0);
+    setWinner(null);
     message.success('Đã khởi tạo lại bàn cờ mới!');
   };
 

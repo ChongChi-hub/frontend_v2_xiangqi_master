@@ -32,7 +32,6 @@ class SocketService {
     const token = useAuthStore.getState().token;
 
     if (this.socket && this.socket.connected) {
-      // Update token in auth if changed
       if (token) {
         this.socket.auth = { token };
       }
@@ -97,6 +96,12 @@ class SocketService {
       console.log(`[SocketService] Emitting leave_room for ${roomId}...`);
       this.socket.emit('leave_room', roomId);
     }
+  }
+
+  public getMatchInfo(matchId: string): void {
+    const socket = this.connect();
+    console.log(`[SocketService] Emitting get_match_info for match ${matchId}...`);
+    socket.emit('get_match_info', { matchId });
   }
 
   public sendMove(matchId: string, fen: string, moveStr: string, timeCost: number = 0): void {

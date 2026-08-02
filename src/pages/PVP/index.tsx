@@ -18,7 +18,11 @@ import { XiangqiBoard } from '@/components/PVE/XiangqiBoard';
 import { BoardControls } from '@/components/PVE/BoardControls';
 import { MoveHistory } from '@/components/PVE/MoveHistory';
 import { BoardSettings } from '@/components/PVE/BoardSettings';
-import socketService, { type MoveMadeData, type MatchEndedData } from '@/services/socket.service';
+import socketService, {
+  type MoveMadeData,
+  type MatchEndedData,
+  type MatchFoundData,
+} from '@/services/socket.service';
 import { useAuthStore } from '@/store/auth.store';
 import { useUserProfile } from '@/hooks/useUser';
 import type { BoardType, PieceStyle } from '@/types/ai';
@@ -31,7 +35,7 @@ export const PvpPage: React.FC = () => {
   const authUser = useAuthStore((state) => state.user);
   const { data: profileData } = useUserProfile();
 
-  // Safely extract User ID from all possible profile/auth payloads
+  // Extract User ID safely across all backend payload schemas
   const currentUserId =
     profileData?.user?.id ||
     (profileData as unknown as { userId?: string })?.userId ||
@@ -39,46 +43,41 @@ export const PvpPage: React.FC = () => {
     (authUser as unknown as { userId?: string })?.userId ||
     '';
 
-  const currentUsername = profileData?.user?.username || authUser?.username || 'Kỳ Thủ';
 
-  // Match initial info from router state if available
-  const initialMatchData = location.state as {
-    matchId?: string;
-    redPlayerId?: string;
-    redUsername?: string;
-    blackPlayerId?: string;
-    blackUsername?: string;
-    fen?: string;
-  } | null;
+  // Initial match data passed via router navigation state
+  const routerMatchData = location.state as MatchFoundData | null;
 
-  // Determine My Side (Red or Black) reliably
-  const matchRedPlayerId = initialMatchData?.redPlayerId;
-  const matchBlackPlayerId = initialMatchData?.blackPlayerId;
+  // Real-time Match Details State
+  const [matchData, setMatchData] = useState<{
+    redPlayerId: string;
+    redUsername: string;
+    blackPlayerId: string;
+    blackUsername: string;
+    fen: string;
+  }>({
+    redPlayerId: routerMatchData?.redPlayerId || '',
+    redUsername: routerMatchData?.redUsername || 'Kỳ thủ Đỏ',
+    blackPlayerId: routerMatchData?.blackPlayerId || '',
+    blackUsername: routerMatchData?.blackUsername || 'Kỳ thủ Đen',
+    fen: routerMatchData?.fen || INITIAL_FEN,
+  });
 
-  const isRedPlayer = matchRedPlayerId && currentUserId
-    ? matchRedPlayerId === currentUserId
-    : matchBlackPlayerId && currentUserId
-    ? matchBlackPlayerId !== currentUserId
-    : true; // Default Red if undetermined
+  // Player side determination (Red vs Black)
+  const isRedPlayer = matchData.redPlayerId
+    ? matchData.redPlayerId === currentUserId
+    : matchData.blackPlayerId
+    ? matchData.blackPlayerId !== currentUserId
+    : true; // Default Red
 
   const playerSide: 'red' | 'black' = isRedPlayer ? 'red' : 'black';
 
-  // Display Usernames for Both Players
-  const redDisplayUsername =
-    initialMatchData?.redUsername ||
-    (isRedPlayer ? currentUsername : 'Kỳ Thủ Đỏ');
-
-  const blackDisplayUsername =
-    initialMatchData?.blackUsername ||
-    (!isRedPlayer ? currentUsername : 'Kỳ Thủ Đen');
-
-  // Board settings
+  // Board display settings
   const [boardType, setBoardType] = useState<BoardType>('wood');
   const [pieceStyle, setPieceStyle] = useState<PieceStyle>('classic');
 
-  // Game state
+  // Interactive Game State
   const [boardState, setBoardState] = useState<BoardGrid>(
-    () => fenToBoard(initialMatchData?.fen || INITIAL_FEN).board
+    () => fenToBoard(matchData.fen).board
   );
   const [turn, setTurn] = useState<'red' | 'black'>('red');
   const [selectedPos, setSelectedPos] = useState<Position | null>(null);
@@ -125,13 +124,35 @@ export const PvpPage: React.FC = () => {
     [boardState]
   );
 
-  // Connect socket room & listen for moves & match end
+  // Connect socket room & listen for match info, moves & match end
   useEffect(() => {
     if (!matchId) return;
 
     const socket = socketService.connect();
     const roomId = `match_${matchId}`;
     socketService.joinRoom(roomId);
+    socketService.getMatchInfo(matchId);
+
+    const handleMatchInfo = (info: {
+      matchId: string;
+      redPlayerId: string;
+      redUsername: string;
+      blackPlayerId: string;
+      blackUsername: string;
+      fen: string;
+    }) => {
+      console.log('[PvpPage] Received match_info:', info);
+      setMatchData({
+        redPlayerId: info.redPlayerId,
+        redUsername: info.redUsername,
+        blackPlayerId: info.blackPlayerId,
+        blackUsername: info.blackUsername,
+        fen: info.fen,
+      });
+
+      const { board } = fenToBoard(info.fen);
+      setBoardState(board);
+    };
 
     const handleMoveMade = (data: MoveMadeData) => {
       if (data.playerId !== currentUserId) {
@@ -149,10 +170,12 @@ export const PvpPage: React.FC = () => {
       }
     };
 
+    socket.on('match_info', handleMatchInfo);
     socket.on('move_made', handleMoveMade);
     socket.on('match_ended', handleMatchEnded);
 
     return () => {
+      socket.off('match_info', handleMatchInfo);
       socket.off('move_made', handleMoveMade);
       socket.off('match_ended', handleMatchEnded);
       socketService.leaveRoom(roomId);
@@ -274,9 +297,9 @@ export const PvpPage: React.FC = () => {
 
       {/* Main Content Layout */}
       <main className="max-w-[1400px] mx-auto w-full px-4 sm:px-8 md:px-16 py-6 space-y-6">
-        {/* Match Header Information Card with Exact Usernames */}
+        {/* Match Header Information Card: Left is RED, Right is BLACK */}
         <div className="bg-white border border-[#d4c3be] rounded-2xl p-5 shadow-xs flex items-center justify-around gap-4 text-center">
-          {/* Player Red */}
+          {/* Left Side: RED Player */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-red-100 border border-red-800 flex items-center justify-center text-red-800 font-bold">
               <UserIcon className="w-5 h-5" />
@@ -284,7 +307,7 @@ export const PvpPage: React.FC = () => {
             <div className="text-left">
               <span className="block text-xs font-bold text-red-800 font-serif">BÊN ĐỎ (Đi trước)</span>
               <span className="text-sm font-bold text-[#442a22]">
-                {redDisplayUsername}
+                {matchData.redUsername} {isRedPlayer ? '⭐️ (Bạn)' : ''}
               </span>
             </div>
           </div>
@@ -302,12 +325,12 @@ export const PvpPage: React.FC = () => {
             </span>
           </div>
 
-          {/* Player Black */}
+          {/* Right Side: BLACK Player */}
           <div className="flex items-center gap-3">
             <div className="text-right">
               <span className="block text-xs font-bold text-stone-900 font-serif">BÊN ĐEN (Đi sau)</span>
               <span className="text-sm font-bold text-[#442a22]">
-                {blackDisplayUsername}
+                {matchData.blackUsername} {!isRedPlayer ? '⭐️ (Bạn)' : ''}
               </span>
             </div>
             <div className="w-10 h-10 rounded-full bg-stone-900 border border-stone-900 flex items-center justify-center text-white font-bold">

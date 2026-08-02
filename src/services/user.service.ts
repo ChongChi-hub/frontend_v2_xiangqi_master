@@ -42,6 +42,7 @@ export const userService = {
     clientMatchId: string;
     timeControl?: number;
     initialFen?: string;
+    moves?: string[];
   }): Promise<{ message: string; reward: number }> {
     const response = await apiClient.post<{ message: string; reward: number }>('/users/pve-match', data);
     return response.data;

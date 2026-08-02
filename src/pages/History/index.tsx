@@ -99,7 +99,10 @@ const HistoryPage: React.FC = () => {
                         <img src={myAvatar} alt="Bạn" className="w-full h-full object-cover" />
                       </div>
                       <Text strong className={`text-sm ${myColorClass}`}>BẠN</Text>
-                      <Text className="text-[10px] text-stone-500">{myPlayer?.eloScore} ELO</Text>
+                      <div className="flex gap-1 items-center mt-0.5">
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-stone-100 border border-stone-200">{isRed ? '🔴 Đỏ' : '⚫ Đen'}</span>
+                        <Text className="text-[10px] text-stone-500">{myPlayer?.eloScore} ELO</Text>
+                      </div>
                     </div>
 
                     <div className="flex flex-col items-center justify-center space-y-1">
@@ -112,7 +115,10 @@ const HistoryPage: React.FC = () => {
                         <img src={opponentAvatar} alt={opponentName} className="w-full h-full object-cover" />
                       </div>
                       <Text strong className={`text-sm ${opponentColorClass}`}>{opponentName}</Text>
-                      <Text className="text-[10px] text-stone-500">{opponentPlayer?.eloScore || 2800} ELO</Text>
+                      <div className="flex gap-1 items-center mt-0.5">
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-stone-100 border border-stone-200">{!isRed ? '🔴 Đỏ' : '⚫ Đen'}</span>
+                        <Text className="text-[10px] text-stone-500">{opponentPlayer?.eloScore || 2800} ELO</Text>
+                      </div>
                     </div>
 
                   </div>

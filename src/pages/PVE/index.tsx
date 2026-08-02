@@ -233,6 +233,7 @@ export const PvePage: React.FC = () => {
         clientMatchId: matchId || `pve_${Date.now()}`,
         timeControl: elapsedSeconds,
         initialFen: INITIAL_FEN,
+        moves: moveHistory.map(m => m.moveStr),
       });
       // Invalidate queries to refresh history and ELO
       queryClient.invalidateQueries({ queryKey: ['userProfile'] });

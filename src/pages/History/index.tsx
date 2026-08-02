@@ -1,7 +1,7 @@
 import React from 'react';
 import { useHistory } from '@/hooks/useUser';
 import { useAuthStore } from '@/store/auth.store';
-import { Spin, Card, Typography, Empty, Tag } from 'antd';
+import { Spin, Card, Typography, Empty } from 'antd';
 import { Clock, CheckCircle2, XCircle, MinusCircle } from 'lucide-react';
 
 const { Title, Text } = Typography;
@@ -22,14 +22,18 @@ const HistoryPage: React.FC = () => {
   };
 
   const renderResult = (match: any) => {
-    if (match.status === 'DRAW') {
-      return <Tag color="default" className="flex items-center gap-1 font-bold"><MinusCircle className="w-3 h-3" /> HÒA</Tag>;
+    const baseClass = "px-3 py-1.5 text-[11px] font-black rounded-lg flex flex-row items-center justify-center gap-1.5 min-w-[85px] shadow-sm tracking-wider";
+    
+    if (match.status === 'DRAW' || (match.status === 'FINISHED' && !match.winnerId)) {
+      return <div className={`bg-stone-100 text-stone-600 border border-stone-300 ${baseClass}`}><MinusCircle className="w-3.5 h-3.5" /> HÒA</div>;
     }
+    
     const isWinner = match.winnerId === user?.id;
     if (isWinner) {
-      return <Tag color="success" className="flex items-center gap-1 font-bold"><CheckCircle2 className="w-3 h-3" /> THẮNG</Tag>;
+      return <div className={`bg-green-100 text-green-700 border border-green-300 ${baseClass}`}><CheckCircle2 className="w-3.5 h-3.5" /> THẮNG</div>;
     }
-    return <Tag color="error" className="flex items-center gap-1 font-bold"><XCircle className="w-3 h-3" /> THUA</Tag>;
+    
+    return <div className={`bg-red-50 text-red-600 border border-red-200 ${baseClass}`}><XCircle className="w-3.5 h-3.5" /> THUA</div>;
   };
 
   return (

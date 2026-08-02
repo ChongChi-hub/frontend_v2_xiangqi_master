@@ -54,8 +54,14 @@ export const LoginPage: React.FC = () => {
           message.success(res.message || 'Đăng nhập thành công!');
           if (res.user && res.token) {
             setAuth(res.user, res.token);
+            if (res.user.role === 'ADMIN') {
+              navigate('/admin/dashboard');
+            } else {
+              navigate('/dashboard');
+            }
+          } else {
+            navigate('/dashboard');
           }
-          navigate('/');
         },
         onError: (err: Error) => {
           const axiosErr = err as AxiosError<{ error?: string; message?: string }>;

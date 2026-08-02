@@ -63,17 +63,21 @@ export const AppHeader: React.FC = () => {
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#ba1a1a] rounded-full animate-pulse" />
         </button>
 
-        {/* User Avatar linking to Profile */}
+        {/* User Avatar linking to Profile (disabled in Admin layout) */}
         <div
-          onClick={() => navigate('/profile')}
-          title={`Hồ sơ: ${username}`}
-          className="flex items-center gap-2.5 px-2.5 py-1 rounded-full bg-[#f4f2ee] hover:bg-[#e8e5df] border border-[#d4c3be] cursor-pointer transition-all shadow-xs"
+          onClick={() => {
+            if (!location.pathname.startsWith('/admin')) {
+              navigate('/profile');
+            }
+          }}
+          title={location.pathname.startsWith('/admin') ? `Admin: ${username}` : `Hồ sơ: ${username}`}
+          className={`flex items-center gap-2.5 px-2.5 py-1 rounded-full bg-[#f4f2ee] hover:bg-[#e8e5df] border border-[#d4c3be] transition-all shadow-xs ${location.pathname.startsWith('/admin') ? 'cursor-default' : 'cursor-pointer'}`}
         >
-          <div className="w-8 h-8 rounded-full bg-[#361e15] flex items-center justify-center text-white font-bold text-xs overflow-hidden">
+          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#361e15] font-bold text-xs overflow-hidden border border-[#d4c3be]">
             {user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt={username} className="w-full h-full object-cover" />
+              <img src={user.avatarUrl} alt={username} className="w-full h-full object-cover bg-white" />
             ) : (
-              <UserIcon className="w-4 h-4 text-white" />
+              <UserIcon className="w-4 h-4 text-[#361e15]" />
             )}
           </div>
           <span className="hidden sm:inline font-sans text-xs font-bold text-[#442a22]">

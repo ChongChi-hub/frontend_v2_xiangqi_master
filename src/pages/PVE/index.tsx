@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { message } from 'antd';
 import {
@@ -49,6 +49,15 @@ export const PvePage: React.FC = () => {
   const [isHintLoading, setIsHintLoading] = useState<boolean>(false);
   const [winner, setWinner] = useState<'red' | 'black' | null>(null);
 
+  // Check game over when board state changes
+  useEffect(() => {
+    const gameWinner = checkGameOver(boardState);
+    if (gameWinner) {
+      setWinner(gameWinner);
+      message.success(`Trận đấu kết thúc! ${gameWinner === 'red' ? 'Đỏ' : 'Đen'} thắng.`);
+    }
+  }, [boardState]);
+
   // Trigger Pikafish AI move
   const makeAiMove = async (currentFen: string) => {
     setIsAiThinking(true);
@@ -73,38 +82,26 @@ export const PvePage: React.FC = () => {
             nextBoard[to.row][to.col] = piece;
             nextBoard[from.row][from.col] = null;
 
-              if (piece) {
-                const moveRec: MoveRecord = {
-                  from,
-                  to,
-                  piece,
-                  captured: destPiece,
-                  moveStr: res.bestMove,
-                };
-                setMoveHistory((prev) => [...prev, moveRec]);
-                const newFen = boardToFen(nextBoard, 'red');
-                setFenHistory((prev) => [...prev, newFen]);
-              }
-              return nextBoard;
-            });
-
-            setLastMove({ from, to });
-            
-            // Check win condition after AI move
-            const nextBoardForCheck = boardState.map(r => [...r]);
-            const p = nextBoardForCheck[from.row][from.col];
-            nextBoardForCheck[to.row][to.col] = p;
-            nextBoardForCheck[from.row][from.col] = null;
-            const gameWinner = checkGameOver(nextBoardForCheck);
-            if (gameWinner) {
-              setWinner(gameWinner);
-              message.success(`Trận đấu kết thúc! ${gameWinner === 'red' ? 'Đỏ' : 'Đen'} thắng.`);
-            } else {
-              setTurn('red');
+            if (piece) {
+              const moveRec: MoveRecord = {
+                from,
+                to,
+                piece,
+                captured: destPiece,
+                moveStr: res.bestMove,
+              };
+              setMoveHistory((prev) => [...prev, moveRec]);
+              const newFen = boardToFen(nextBoard, 'red');
+              setFenHistory((prev) => [...prev, newFen]);
             }
-          }
+            return nextBoard;
+          });
+
+          setLastMove({ from, to });
+          setTurn('red');
         }
-      } catch (err) {
+      }
+    } catch (err) {
       console.error('Error fetching AI move:', err);
       message.error('Không thể kết nối Pikafish Engine AI');
     } finally {
@@ -161,15 +158,6 @@ export const PvePage: React.FC = () => {
 
         const nextFen = boardToFen(nextBoard, 'black');
         setFenHistory((prev) => [...prev, nextFen]);
-        
-        // Check win condition after player move
-        const gameWinner = checkGameOver(nextBoard);
-        if (gameWinner) {
-          setWinner(gameWinner);
-          message.success(`Trận đấu kết thúc! ${gameWinner === 'red' ? 'Đỏ' : 'Đen'} thắng.`);
-          return;
-        }
-
         setTurn('black');
 
         // Request AI move for Black

@@ -63,6 +63,14 @@ export const userService = {
     });
     return response.data;
   },
+
+  /**
+   * Lấy lịch sử đấu
+   */
+  async getHistory(): Promise<{ matches: any[] }> {
+    const response = await apiClient.get<{ matches: any[] }>('/users/history');
+    return response.data;
+  },
 };
 
 export default userService;

@@ -36,6 +36,7 @@ import { BoardSettings } from '@/components/PVE/BoardSettings';
 import socketService, { type MoveMadeData } from '@/services/socket.service';
 import { useAuthStore } from '@/store/auth.store';
 import { useUserProfile } from '@/hooks/useUser';
+import { useQueryClient } from '@tanstack/react-query';
 import type { BoardType, PieceStyle } from '@/types/ai';
 
 export interface PrivateRoomState {
@@ -44,7 +45,7 @@ export interface PrivateRoomState {
   hostUsername: string;
   guestId: string | null;
   guestUsername: string | null;
-  settings: { totalRounds: number; timeControl: number; hostSide: string };
+  settings: { totalRounds: number; hostSide: string };
   state: {
     status: 'WAITING' | 'PLAYING' | 'BETWEEN_ROUNDS' | 'FINISHED' | 'CLOSED';
     currentRound: number;
@@ -69,6 +70,9 @@ export const RoomsPage: React.FC = () => {
     authUser?.username ||
     'Kỳ Thủ';
 
+  const authUserId = authUser?.id || (authUser as any)?.userId;
+  const queryClient = useQueryClient();
+
   // --- SSOT State ---
   const [roomState, setRoomState] = useState<PrivateRoomState | null>(null);
 
@@ -78,7 +82,7 @@ export const RoomsPage: React.FC = () => {
 
   // Room Creation Settings
   const [totalRounds, setTotalRounds] = useState<number>(3);
-  const [timeControl, setTimeControl] = useState<number>(15);
+
   const [side, setSide] = useState<'random' | 'red' | 'black'>('random');
   const [isCopied, setIsCopied] = useState<boolean>(false);
 
@@ -91,8 +95,7 @@ export const RoomsPage: React.FC = () => {
   const [validMoves, setValidMoves] = useState<Position[]>([]);
   const [lastMove, setLastMove] = useState<{ from: Position; to: Position } | null>(null);
   const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
-
-  const authUserId = authUser?.id || (authUser as any)?.userId;
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
   const isHost = roomState ? String(roomState.hostId) === String(authUserId) : false;
   const playerSide = isHost ? roomState?.state.hostAssignedSide : roomState?.state.guestAssignedSide;
@@ -129,6 +132,19 @@ export const RoomsPage: React.FC = () => {
     }
   }, [roomState?.state.currentFen, roomState?.state.currentRound]);
 
+  // Timer Effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (roomState?.state.status === 'PLAYING' && roomState.state.roundStartedAt) {
+      interval = setInterval(() => {
+        setElapsedSeconds(Math.floor((Date.now() - roomState.state.roundStartedAt!) / 1000));
+      }, 1000);
+    } else {
+      setElapsedSeconds(0);
+    }
+    return () => clearInterval(interval);
+  }, [roomState?.state.status, roomState?.state.roundStartedAt]);
+
   // 2. Socket Listeners
   useEffect(() => {
     const socket = socketService.connect();
@@ -141,6 +157,16 @@ export const RoomsPage: React.FC = () => {
         message.warning('Phòng đã bị đóng.');
         setRoomState(null);
         setInputRoomCode('');
+        
+        // Invalidate queries to refresh history, ELO, leaderboard
+        queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+        queryClient.invalidateQueries({ queryKey: ['userHistory'] });
+        queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+      } else if (room.state.status === 'BETWEEN_ROUNDS' || room.state.status === 'FINISHED') {
+        // Also invalidate to show updated match history immediately when round ends
+        queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+        queryClient.invalidateQueries({ queryKey: ['userHistory'] });
+        queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
       }
     };
 
@@ -226,7 +252,7 @@ export const RoomsPage: React.FC = () => {
   // --- Actions ---
 
   const handleCreateRoom = () => {
-    socketService.createPrivateRoom({ totalRounds, timeControl, hostSide: side });
+    socketService.createPrivateRoom({ totalRounds, hostSide: side });
     message.loading({ content: 'Đang tạo phòng...', key: 'create_room' });
   };
 
@@ -382,29 +408,6 @@ export const RoomsPage: React.FC = () => {
                     }`}
                   >
                     {rounds} Hiệp
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-[#442a22] font-serif flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-[#361e15]" />
-                <span>Thời gian mỗi hiệp</span>
-              </label>
-              <div className="grid grid-cols-4 gap-3">
-                {[5, 10, 15, 30].map((mins) => (
-                  <button
-                    key={`room-time-${mins}`}
-                    type="button"
-                    onClick={() => setTimeControl(mins)}
-                    className={`py-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                      timeControl === mins
-                        ? 'bg-[#361e15] text-white border-[#361e15] shadow-xs'
-                        : 'bg-[#fcf9f8] text-[#504441] border-[#d4c3be] hover:bg-[#f6f3f2]'
-                    }`}
-                  >
-                    {mins} phút
                   </button>
                 ))}
               </div>
@@ -580,7 +583,7 @@ export const RoomsPage: React.FC = () => {
              </div>
              <div className="mt-3 text-xs font-bold text-stone-500 font-mono flex items-center gap-1.5 bg-stone-100 px-3 py-1.5 rounded-lg border border-stone-200">
                <Clock className="w-3.5 h-3.5 text-stone-600" /> 
-               {roomState!.settings.timeControl}:00
+               {Math.floor(elapsedSeconds / 60).toString().padStart(2, '0')}:{ (elapsedSeconds % 60).toString().padStart(2, '0') }
              </div>
            </div>
 

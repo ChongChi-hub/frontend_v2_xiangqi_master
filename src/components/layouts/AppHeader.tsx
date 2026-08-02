@@ -24,6 +24,10 @@ export const AppHeader: React.FC = () => {
         return 'Quản lý người dùng';
       case '/admin/matches':
         return 'Quản lý trận đấu';
+      case '/leaderboard':
+        return 'Bảng Xếp Hạng';
+      case '/history':
+        return 'Lịch sử đấu';
       default:
         return 'Xiangqi Master';
     }

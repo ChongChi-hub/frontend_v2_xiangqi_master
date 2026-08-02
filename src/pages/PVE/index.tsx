@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, message } from 'antd';
 import { Cpu, RotateCcw, Shield, Play } from 'lucide-react';
 import {
@@ -20,9 +20,12 @@ import { MoveHistory } from '@/components/PVE/MoveHistory';
 import { BoardSettings } from '@/components/PVE/BoardSettings';
 import aiService from '@/services/ai.service';
 import userService from '@/services/user.service';
+import { useQueryClient } from '@tanstack/react-query';
 import type { AIDifficultyLevel, BoardType, PieceStyle } from '@/types/ai';
 
 export const PvePage: React.FC = () => {
+  const queryClient = useQueryClient();
+
   // Game Setup & Status
   const [matchStatus, setMatchStatus] = useState<'idle' | 'playing' | 'ended'>('idle');
   const [difficulty, setDifficulty] = useState<AIDifficultyLevel>('intermediate');
@@ -33,6 +36,10 @@ export const PvePage: React.FC = () => {
   // Match Metadata
   const [matchId, setMatchId] = useState<string>('');
   const [gameResult, setGameResult] = useState<'win' | 'lose' | 'draw' | null>(null);
+  
+  // Timer
+  const [matchStartedAt, setMatchStartedAt] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
   // Board State
   const [fenHistory, setFenHistory] = useState<string[]>([INITIAL_FEN]);
@@ -56,6 +63,8 @@ export const PvePage: React.FC = () => {
     setPlayerSide(side);
     setMatchStatus('playing');
     setGameResult(null);
+    setMatchStartedAt(Date.now());
+    setElapsedSeconds(0);
 
     const { board } = fenToBoard(INITIAL_FEN);
     setBoardState(board);
@@ -130,6 +139,19 @@ export const PvePage: React.FC = () => {
       setIsAiThinking(false);
     }
   };
+
+  // Timer Effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (matchStatus === 'playing' && matchStartedAt) {
+      interval = setInterval(() => {
+        setElapsedSeconds(Math.floor((Date.now() - matchStartedAt) / 1000));
+      }, 1000);
+    } else if (matchStatus === 'idle') {
+      setElapsedSeconds(0);
+    }
+    return () => clearInterval(interval);
+  }, [matchStatus, matchStartedAt]);
 
   // Handle Square Clicks by Player
   const handleSquareClick = (pos: Position) => {
@@ -209,9 +231,13 @@ export const PvePage: React.FC = () => {
         result,
         playerSide,
         clientMatchId: matchId || `pve_${Date.now()}`,
-        timeControl: 15,
+        timeControl: elapsedSeconds,
         initialFen: INITIAL_FEN,
       });
+      // Invalidate queries to refresh history and ELO
+      queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['userHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
     } catch (err) {
       console.error('Failed to save PVE match history:', err);
     }

@@ -17,6 +17,7 @@ const RoomsPage = lazy(() => import('@/pages/Rooms'));
 const PvpPage = lazy(() => import('@/pages/PVP'));
 const ProfilePage = lazy(() => import('@/pages/Profile'));
 const LeaderboardPage = lazy(() => import('@/pages/Leaderboard'));
+const HistoryPage = lazy(() => import('@/pages/History'));
 
 // Admin Pages
 const AdminDashboardPage = lazy(() => import('@/pages/Admin/Dashboard'));
@@ -113,6 +114,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingFallback />}>
             <LeaderboardPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: '/history',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <HistoryPage />
           </Suspense>
         ),
       },

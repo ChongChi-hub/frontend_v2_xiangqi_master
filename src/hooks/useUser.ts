@@ -22,3 +22,14 @@ export const useLeaderboard = (page = 1, limit = 10) => {
     retry: 1,
   });
 };
+
+export const useHistory = () => {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  return useQuery({
+    queryKey: ['userHistory', token],
+    queryFn: () => userService.getHistory(),
+    enabled: !!token,
+    staleTime: 1000 * 60 * 2,
+    retry: 1,
+  });
+};

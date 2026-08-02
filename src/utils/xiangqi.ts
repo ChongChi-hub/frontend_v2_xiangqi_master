@@ -98,6 +98,28 @@ export const boardToFen = (board: BoardGrid, turn: PieceColor = 'red'): string =
   return `${fenRows.join('/')} ${fenTurn} - - 0 1`;
 };
 
+// Helper: Get Classic Chinese Character name of piece for traditional board rendering
+export const getPieceChineseName = (piece: Piece | null): string => {
+  if (!piece) return '';
+  const pieceCharMap: Record<string, string> = {
+    r_k: '帥',
+    r_a: '仕',
+    r_b: '相',
+    r_n: '傌',
+    r_r: '俥',
+    r_c: '炮',
+    r_p: '兵',
+    b_k: '將',
+    b_a: '士',
+    b_b: '象',
+    b_n: '馬',
+    b_r: '車',
+    b_c: '砲',
+    b_p: '卒',
+  };
+  return pieceCharMap[piece] || '';
+};
+
 // Helper: Get Vietnamese display name of piece
 export const getPieceName = (piece: Piece | null): string => {
   if (!piece) return '';

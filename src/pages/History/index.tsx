@@ -2,7 +2,7 @@ import React from 'react';
 import { useHistory } from '@/hooks/useUser';
 import { useAuthStore } from '@/store/auth.store';
 import { Spin, Card, Typography, Empty, Tag } from 'antd';
-import { Clock, CheckCircle2, XCircle, MinusCircle, User as UserIcon } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, MinusCircle } from 'lucide-react';
 
 const { Title, Text } = Typography;
 
@@ -21,7 +21,7 @@ const HistoryPage: React.FC = () => {
     return `${m}:${s}`;
   };
 
-  const renderResult = (match: any, isRed: boolean) => {
+  const renderResult = (match: any) => {
     if (match.status === 'DRAW') {
       return <Tag color="default" className="flex items-center gap-1 font-bold"><MinusCircle className="w-3 h-3" /> HÒA</Tag>;
     }
@@ -79,7 +79,7 @@ const HistoryPage: React.FC = () => {
                   {/* Left Side: Result & Time info */}
                   <div className="flex flex-col items-center md:items-start min-w-[120px]">
                     <div className="mb-2">
-                      {renderResult(match, isRed)}
+                      {renderResult(match)}
                     </div>
                     <div className="text-xs text-stone-500 font-medium">
                       {new Date(match.createdAt).toLocaleDateString('vi-VN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}

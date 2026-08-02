@@ -26,7 +26,7 @@ const AdminMatches: React.FC = () => {
     {
       title: 'Người chơi Đỏ',
       key: 'redPlayer',
-      render: (_: any, record: MatchItem) => (
+      render: (_: unknown, record: MatchItem) => (
         <Text strong className="text-[#ba1a1a]">
           {record.redPlayer?.username || 'Unknown'} {record.winnerId === record.redPlayerId && '🏆'}
         </Text>
@@ -35,7 +35,7 @@ const AdminMatches: React.FC = () => {
     {
       title: 'Người chơi Đen',
       key: 'blackPlayer',
-      render: (_: any, record: MatchItem) => (
+      render: (_: unknown, record: MatchItem) => (
         <Text strong className="text-[#1b1c1c]">
           {record.blackPlayer?.username || 'Unknown'} {record.winnerId === record.blackPlayerId && '🏆'}
         </Text>
@@ -61,7 +61,7 @@ const AdminMatches: React.FC = () => {
     {
       title: 'Số nước đi',
       key: 'moves',
-      render: (_: any, record: MatchItem) => record._count.moves,
+      render: (_: unknown, record: MatchItem) => record._count.moves,
     },
     {
       title: 'Ngày tạo',
@@ -71,9 +71,9 @@ const AdminMatches: React.FC = () => {
     },
   ];
 
-  const handleTableChange = (pagination: any) => {
-    setCurrentPage(pagination.current);
-    setPageSize(pagination.pageSize);
+  const handleTableChange = (pagination: { current?: number; pageSize?: number }) => {
+    if (pagination.current) setCurrentPage(pagination.current);
+    if (pagination.pageSize) setPageSize(pagination.pageSize);
   };
 
   return (

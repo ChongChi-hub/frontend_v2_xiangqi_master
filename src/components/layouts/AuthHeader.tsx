@@ -69,25 +69,6 @@ export const AuthHeader: React.FC = () => {
           </>
         ) : (
           <>
-            <button
-              type="button"
-              onClick={() => navigate('/login')}
-              title="Nhóm"
-              className="text-[#504441] hover:bg-[#f6f3f2] p-2 rounded-full transition-colors cursor-pointer"
-            >
-              <Users className="w-5 h-5" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate('/login')}
-              title="Thông báo"
-              className="text-[#504441] hover:bg-[#f6f3f2] p-2 rounded-full transition-colors relative cursor-pointer"
-            >
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#ba1a1a] rounded-full animate-pulse" />
-            </button>
-
             <Link
               to="/login"
               className={

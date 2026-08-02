@@ -6,6 +6,15 @@ import { adminService } from '@/services/admin.service';
 
 const { Title, Text } = Typography;
 
+interface BotSettingItem {
+  key: string;
+  difficulty: string;
+  label: string;
+  color: string;
+  depth: number;
+  movetime: number;
+}
+
 const DEFAULT_SETTINGS = [
   { difficulty: 'beginner', label: 'Mới chơi', color: 'green', depth: 2, movetime: 250 },
   { difficulty: 'apprentice', label: 'Nghiệp dư', color: 'cyan', depth: 4, movetime: 450 },
@@ -26,7 +35,7 @@ const AdminBotSettings: React.FC = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: { difficulty: string; depth: number; movetime: number }) => 
+    mutationFn: (data: { difficulty: string; depth: number; movetime: number }) =>
       adminService.updateBotSetting(data.difficulty, data.depth, data.movetime),
     onSuccess: () => {
       message.success('Cập nhật cấu hình thành công!');
@@ -35,12 +44,11 @@ const AdminBotSettings: React.FC = () => {
     },
     onError: () => {
       message.error('Có lỗi xảy ra khi lưu cấu hình.');
-    }
+    },
   });
 
-  // Merge DB settings with defaults
-  const dataSource = DEFAULT_SETTINGS.map(def => {
-    const dbItem = dbSettings.find(s => s.difficulty === def.difficulty);
+  const dataSource: BotSettingItem[] = DEFAULT_SETTINGS.map((def) => {
+    const dbItem = dbSettings.find((s) => s.difficulty === def.difficulty);
     return {
       key: def.difficulty,
       difficulty: def.difficulty,
@@ -51,9 +59,9 @@ const AdminBotSettings: React.FC = () => {
     };
   });
 
-  const isEditing = (record: any) => record.key === editingKey;
+  const isEditing = (record: BotSettingItem) => record.key === editingKey;
 
-  const edit = (record: any) => {
+  const edit = (record: BotSettingItem) => {
     setEditDepth(record.depth);
     setEditMovetime(record.movetime);
     setEditingKey(record.key);
@@ -72,7 +80,7 @@ const AdminBotSettings: React.FC = () => {
       title: 'Mức độ',
       dataIndex: 'label',
       key: 'label',
-      render: (text: string, record: any) => (
+      render: (text: string, record: BotSettingItem) => (
         <Tag color={record.color} className="font-bold text-sm px-3 py-1">
           {text}
         </Tag>
@@ -82,34 +90,50 @@ const AdminBotSettings: React.FC = () => {
       title: 'Độ Sâu (Depth)',
       dataIndex: 'depth',
       key: 'depth',
-      render: (val: number, record: any) => {
+      render: (val: number, record: BotSettingItem) => {
         return isEditing(record) ? (
           <InputNumber min={1} max={30} value={editDepth} onChange={(v) => setEditDepth(v || 1)} />
         ) : (
-          <Text strong>{val} <span className="text-gray-400 font-normal">nước đi</span></Text>
+          <Text strong>
+            {val} <span className="text-gray-400 font-normal">nước đi</span>
+          </Text>
         );
-      }
+      },
     },
     {
       title: 'Thời Gian Suy Nghĩ (ms)',
       dataIndex: 'movetime',
       key: 'movetime',
-      render: (val: number, record: any) => {
+      render: (val: number, record: BotSettingItem) => {
         return isEditing(record) ? (
-          <InputNumber min={10} max={10000} step={100} value={editMovetime} onChange={(v) => setEditMovetime(v || 10)} />
+          <InputNumber
+            min={10}
+            max={10000}
+            step={100}
+            value={editMovetime}
+            onChange={(v) => setEditMovetime(v || 10)}
+          />
         ) : (
-          <Text strong>{val} <span className="text-gray-400 font-normal">ms</span></Text>
+          <Text strong>
+            {val} <span className="text-gray-400 font-normal">ms</span>
+          </Text>
         );
-      }
+      },
     },
     {
       title: 'Hành động',
       key: 'action',
-      render: (_: any, record: any) => {
+      render: (_: unknown, record: BotSettingItem) => {
         const editable = isEditing(record);
         return editable ? (
           <div className="flex gap-2">
-            <Button type="primary" className="bg-[#361e15]" icon={<Save className="w-4 h-4"/>} onClick={() => save(record.difficulty)} loading={updateMutation.isPending}>
+            <Button
+              type="primary"
+              className="bg-[#361e15]"
+              icon={<Save className="w-4 h-4" />}
+              onClick={() => save(record.difficulty)}
+              loading={updateMutation.isPending}
+            >
               Lưu
             </Button>
             <Button onClick={cancel}>Hủy</Button>
@@ -138,8 +162,14 @@ const AdminBotSettings: React.FC = () => {
         <div className="text-sm">
           <p className="font-semibold mb-1">Hướng dẫn thông số:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong>Độ sâu (Depth)</strong>: Số nước đi tối đa mà Bot được phép nhìn trước. Càng cao bot đánh càng hay nhưng tốn nhiều CPU. (Khuyên dùng: 2 đến 15)</li>
-            <li><strong>Thời gian (Movetime)</strong>: Giới hạn thời gian suy nghĩ tối đa tính bằng mili-giây. Ví dụ: 1000 = 1 giây. (Khuyên dùng: 250 đến 3000)</li>
+            <li>
+              <strong>Độ sâu (Depth)</strong>: Số nước đi tối đa mà Bot được phép nhìn trước. Càng cao
+              bot đánh càng hay nhưng tốn nhiều CPU. (Khuyên dùng: 2 đến 15)
+            </li>
+            <li>
+              <strong>Thời gian (Movetime)</strong>: Giới hạn thời gian suy nghĩ tối đa tính bằng
+              mili-giây. Ví dụ: 1000 = 1 giây. (Khuyên dùng: 250 đến 3000)
+            </li>
           </ul>
         </div>
       </div>

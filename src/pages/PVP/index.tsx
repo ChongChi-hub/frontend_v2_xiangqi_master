@@ -43,7 +43,6 @@ export const PvpPage: React.FC = () => {
     (authUser as unknown as { userId?: string })?.userId ||
     '';
 
-
   // Initial match data passed via router navigation state
   const routerMatchData = location.state as MatchFoundData | null;
 
@@ -61,6 +60,9 @@ export const PvpPage: React.FC = () => {
     blackUsername: routerMatchData?.blackUsername || 'Kỳ thủ Đen',
     fen: routerMatchData?.fen || INITIAL_FEN,
   });
+
+  // Auto-redirect timer state
+  const [autoExitSeconds, setAutoExitSeconds] = useState<number | null>(null);
 
   // Player side determination (Red vs Black)
   const isRedPlayer = matchData.redPlayerId
@@ -163,10 +165,12 @@ export const PvpPage: React.FC = () => {
     const handleMatchEnded = (data: MatchEndedData) => {
       const isWinner = data.winnerId === currentUserId;
       setGameResult(isWinner ? 'VICTORY' : 'DEFEAT');
+      setAutoExitSeconds(4); // Start 4-second auto exit countdown
+
       if (isWinner) {
-        message.success('Chúc mừng! Bạn đã giành chiến thắng trong trận đấu này!');
+        message.success('Chúc mừng! Đối thủ đã rời trận/nhận thua. Bạn giành chiến thắng!');
       } else {
-        message.info('Ván đấu kết thúc. Đối thủ đã giành chiến thắng.');
+        message.info('Ván đấu kết thúc. Bạn đã thoát trận hoặc thua cuộc.');
       }
     };
 
@@ -181,6 +185,22 @@ export const PvpPage: React.FC = () => {
       socketService.leaveRoom(roomId);
     };
   }, [matchId, currentUserId, applyOpponentMove]);
+
+  // Auto exit countdown effect
+  useEffect(() => {
+    if (autoExitSeconds === null) return;
+
+    if (autoExitSeconds <= 0) {
+      navigate('/dashboard');
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setAutoExitSeconds((prev) => (prev !== null ? prev - 1 : null));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [autoExitSeconds, navigate]);
 
   // Handle Square Clicks
   const handleSquareClick = (pos: Position) => {
@@ -380,7 +400,7 @@ export const PvpPage: React.FC = () => {
         </div>
       </main>
 
-      {/* Result Modal */}
+      {/* Result Modal with Auto-Exit Countdown */}
       {gameResult && (
         <Modal
           open={!!gameResult}
@@ -406,16 +426,22 @@ export const PvpPage: React.FC = () => {
 
             <p className="text-xs text-[#504441]">
               {gameResult === 'VICTORY'
-                ? 'Bạn đã giành chiến thắng và cộng +30 ELO!'
+                ? 'Đối thủ đã thoát trận / nhận thua! Bạn giành chiến thắng và nhận +30 ELO!'
                 : 'Ván đấu đã kết thúc. Bạn bị trừ -30 ELO.'}
             </p>
+
+            {autoExitSeconds !== null && (
+              <p className="text-xs font-semibold text-emerald-700">
+                Tự động về Sảnh Đấu sau {autoExitSeconds} giây...
+              </p>
+            )}
 
             <button
               type="button"
               onClick={() => navigate('/dashboard')}
               className="w-full bg-[#361e15] hover:bg-[#26140e] text-white font-bold py-3 rounded-xl shadow-md cursor-pointer transition-all text-xs"
             >
-              Trở về Sảnh Đấu
+              Trở về Sảnh Đấu Ngay
             </button>
           </div>
         </Modal>

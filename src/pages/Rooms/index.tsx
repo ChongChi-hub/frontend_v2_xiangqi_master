@@ -57,6 +57,7 @@ export interface PrivateRoomState {
     currentFen: string;
     turn: 'red' | 'black';
     drawOfferBy: string | null;
+    roundStartedAt?: number;
   };
 }
 

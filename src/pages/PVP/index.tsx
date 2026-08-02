@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Modal, message } from 'antd';
 import { Swords, LogOut, Shield, User as UserIcon } from 'lucide-react';
@@ -25,17 +25,27 @@ import socketService, {
 } from '@/services/socket.service';
 import { useAuthStore } from '@/store/auth.store';
 import { useUserProfile } from '@/hooks/useUser';
+import { useMatchStore } from '@/store/match.store';
 import type { BoardType, PieceStyle } from '@/types/ai';
 
-export const PvpPage: React.FC = () => {
-  const { matchId } = useParams<{ matchId: string }>();
+interface PvpPageProps {
+  initialMatchDataOverride?: MatchFoundData | null;
+  onMatchEndComplete?: () => void;
+}
+
+export const PvpPage: React.FC<PvpPageProps> = ({
+  initialMatchDataOverride,
+  onMatchEndComplete,
+}) => {
+  const { matchId: paramMatchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
 
   const authUser = useAuthStore((state) => state.user);
   const { data: profileData } = useUserProfile();
+  const { setActiveMatch, clearActiveMatch } = useMatchStore();
 
-  // Extract User ID safely across all backend payload schemas
+  // Extract User ID & Username safely
   const currentUserId =
     (profileData as unknown as { userId?: string })?.userId ||
     profileData?.user?.id ||
@@ -44,8 +54,15 @@ export const PvpPage: React.FC = () => {
     (authUser as unknown as { userId?: string })?.userId ||
     '';
 
-  // Initial match data passed via router navigation state
-  const routerMatchData = location.state as MatchFoundData | null;
+  const currentUsername =
+    (profileData as unknown as { username?: string })?.username ||
+    profileData?.user?.username ||
+    authUser?.username ||
+    '';
+
+  // Initial match data passed via router navigation state or prop override
+  const routerMatchData = (initialMatchDataOverride || location.state) as MatchFoundData | null;
+  const matchId = paramMatchId || routerMatchData?.matchId || '';
 
   // Real-time Match Details State
   const [matchData, setMatchData] = useState<{
@@ -65,12 +82,29 @@ export const PvpPage: React.FC = () => {
   // Auto-redirect timer state
   const [autoExitSeconds, setAutoExitSeconds] = useState<number | null>(null);
 
-  // Player side determination (Red vs Black)
-  const isRedPlayer = matchData.redPlayerId && currentUserId
-    ? matchData.redPlayerId === currentUserId
-    : matchData.blackPlayerId && currentUserId
-    ? matchData.blackPlayerId !== currentUserId
-    : true; // Default Red if undetermined
+  // Failsafe side determination: Check BOTH userId AND username!
+  const isRedPlayer = useMemo(() => {
+    if (matchData.redPlayerId && currentUserId && matchData.redPlayerId === currentUserId) {
+      return true;
+    }
+    if (matchData.redUsername && currentUsername && matchData.redUsername === currentUsername) {
+      return true;
+    }
+    if (matchData.blackPlayerId && currentUserId && matchData.blackPlayerId === currentUserId) {
+      return false;
+    }
+    if (matchData.blackUsername && currentUsername && matchData.blackUsername === currentUsername) {
+      return false;
+    }
+    return true; // Default Red
+  }, [
+    matchData.redPlayerId,
+    matchData.redUsername,
+    matchData.blackPlayerId,
+    matchData.blackUsername,
+    currentUserId,
+    currentUsername,
+  ]);
 
   const playerSide: 'red' | 'black' = isRedPlayer ? 'red' : 'black';
 
@@ -127,6 +161,16 @@ export const PvpPage: React.FC = () => {
     socketService.joinRoom(roomId);
     socketService.getMatchInfo(matchId);
 
+    // Register active match in global store
+    setActiveMatch({
+      matchId,
+      redPlayerId: matchData.redPlayerId,
+      redUsername: matchData.redUsername,
+      blackPlayerId: matchData.blackPlayerId,
+      blackUsername: matchData.blackUsername,
+      fen: matchData.fen,
+    });
+
     const handleMatchInfo = (info: {
       matchId: string;
       redPlayerId: string;
@@ -177,14 +221,19 @@ export const PvpPage: React.FC = () => {
       socket.off('match_ended', handleMatchEnded);
       socketService.leaveRoom(roomId);
     };
-  }, [matchId, currentUserId, applyOpponentMove]);
+  }, [matchId, currentUserId, applyOpponentMove, setActiveMatch, matchData.redPlayerId, matchData.redUsername, matchData.blackPlayerId, matchData.blackUsername, matchData.fen]);
 
   // Auto exit countdown effect
   useEffect(() => {
     if (autoExitSeconds === null) return;
 
     if (autoExitSeconds <= 0) {
-      navigate('/dashboard');
+      clearActiveMatch();
+      if (onMatchEndComplete) {
+        onMatchEndComplete();
+      } else {
+        navigate('/dashboard');
+      }
       return;
     }
 
@@ -193,7 +242,7 @@ export const PvpPage: React.FC = () => {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [autoExitSeconds, navigate]);
+  }, [autoExitSeconds, navigate, clearActiveMatch, onMatchEndComplete]);
 
   // Handle Square Clicks
   const handleSquareClick = (pos: Position) => {
@@ -273,24 +322,29 @@ export const PvpPage: React.FC = () => {
         if (matchId) {
           socketService.resignMatch(matchId);
         }
+        clearActiveMatch();
         message.info('Đã chịu thua trận đấu.');
-        navigate('/dashboard');
+        if (onMatchEndComplete) {
+          onMatchEndComplete();
+        } else {
+          navigate('/dashboard');
+        }
       },
     });
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#fcf9f8] text-[#1b1c1c] pb-16 md:pb-8">
+    <div className="w-full bg-[#fcf9f8] text-[#1b1c1c]">
       {/* Top Banner Header */}
-      <div className="w-full bg-[#f6f3f2] border-b border-[#d4c3be] px-4 sm:px-8 md:px-16 py-5 shadow-xs">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
+      <div className="w-full bg-[#f6f3f2] border-b border-[#d4c3be] px-4 sm:px-8 py-4 shadow-xs rounded-2xl mb-6">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#ba1a1a] flex items-center justify-center text-white">
               <Swords className="w-5 h-5" />
             </div>
             <div>
               <h1 className="text-xl md:text-2xl font-serif font-bold text-[#442a22]">
-                Trận Đấu Trực Tuyến PvP
+                Trận Đấu Trực Tuyến PvP (Sảnh Đấu)
               </h1>
               <p className="text-xs text-[#504441]">
                 Mã trận: <span className="font-mono font-bold">{matchId?.substring(0, 10)}...</span>
@@ -310,7 +364,7 @@ export const PvpPage: React.FC = () => {
       </div>
 
       {/* Main Content Layout */}
-      <main className="max-w-[1400px] mx-auto w-full px-4 sm:px-8 md:px-16 py-6 space-y-6">
+      <div className="w-full space-y-6">
         {/* Match Header Information Card: Left is RED, Right is BLACK */}
         <div className="bg-white border border-[#d4c3be] rounded-2xl p-5 shadow-xs flex items-center justify-around gap-4 text-center">
           {/* Left Side: RED Player */}
@@ -392,7 +446,7 @@ export const PvpPage: React.FC = () => {
             />
           </div>
         </div>
-      </main>
+      </div>
 
       {/* Result Modal with Auto-Exit Countdown */}
       {gameResult && (
@@ -432,7 +486,14 @@ export const PvpPage: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => navigate('/dashboard')}
+              onClick={() => {
+                clearActiveMatch();
+                if (onMatchEndComplete) {
+                  onMatchEndComplete();
+                } else {
+                  navigate('/dashboard');
+                }
+              }}
               className="w-full bg-[#361e15] hover:bg-[#26140e] text-white font-bold py-3 rounded-xl shadow-md cursor-pointer transition-all text-xs"
             >
               Trở về Sảnh Đấu Ngay

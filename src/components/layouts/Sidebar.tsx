@@ -1,19 +1,59 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/auth.store';
-import { getTitleFromElo } from '@/types/user';
+import { Modal, message } from 'antd';
 import { Gamepad2, Cpu, Lock, History, Trophy, LogOut, Users, Swords, Brain } from 'lucide-react';
-import { message } from 'antd';
+import { useAuthStore } from '@/store/auth.store';
+import { useMatchStore } from '@/store/match.store';
+import socketService from '@/services/socket.service';
+import { getTitleFromElo } from '@/types/user';
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const { activeMatch, clearActiveMatch } = useMatchStore();
 
   const handleLogout = () => {
+    if (activeMatch) {
+      Modal.confirm({
+        title: '⚠️ Cảnh báo rời ván đấu!',
+        content: 'Bạn đang trong ván đấu trực tuyến PvP! Nếu đăng xuất lúc này, bạn sẽ bị tính là thua cuộc (-30 ELO). Bạn có chắc chắn không?',
+        okText: 'Đầu hàng & Đăng xuất',
+        cancelText: 'Ở lại ván đấu',
+        okButtonProps: { danger: true },
+        onOk: () => {
+          socketService.resignMatch(activeMatch.matchId);
+          clearActiveMatch();
+          logout();
+          message.success('Đã đăng xuất thành công');
+          navigate('/login');
+        },
+      });
+      return;
+    }
+
     logout();
     message.success('Đã đăng xuất thành công');
     navigate('/login');
+  };
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
+    if (activeMatch && !path.startsWith('#') && location.pathname !== path) {
+      e.preventDefault();
+      Modal.confirm({
+        title: '⚠️ Cảnh báo rời ván đấu!',
+        content:
+          'Bạn đang trong ván đấu trực tuyến PvP! Nếu rời khỏi trang này, bạn sẽ bị tính là đầu hàng và bị trừ 30 điểm ELO. Bạn có chắc chắn muốn rời trận?',
+        okText: 'Đầu hàng & Rời trận',
+        cancelText: 'Ở lại ván đấu',
+        okButtonProps: { danger: true },
+        onOk: () => {
+          socketService.resignMatch(activeMatch.matchId);
+          clearActiveMatch();
+          navigate(path);
+        },
+      });
+    }
   };
 
   const username = user?.username || 'Kỳ Thủ';
@@ -71,7 +111,7 @@ export const Sidebar: React.FC = () => {
       label: 'Cấu hình AI',
       path: '/admin/bot-settings',
       icon: <Brain className="w-5 h-5" />,
-    }
+    },
   ];
 
   const navItems = isAdminRoute ? adminNavItems : playerNavItems;
@@ -80,7 +120,7 @@ export const Sidebar: React.FC = () => {
     <aside className="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-[#fcf9f8] border-r border-[#d4c3be] p-4 space-y-4 z-50">
       {/* Brand Logo */}
       <div className="flex items-center gap-2 px-2 py-3">
-        <Link to="/home" className="group">
+        <Link to="/home" onClick={(e) => handleNavClick(e, '/home')} className="group">
           <h1 className="font-serif text-2xl font-bold text-[#442a22] tracking-tight group-hover:text-[#5d4037] transition-colors">
             Xiangqi Master
           </h1>
@@ -98,6 +138,7 @@ export const Sidebar: React.FC = () => {
             <Link
               key={item.label}
               to={item.path.startsWith('#') ? '#' : item.path}
+              onClick={(e) => handleNavClick(e, item.path)}
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                 isActive
                   ? 'bg-[#5d4037] text-[#d4ada1] font-bold shadow-xs scale-98'
@@ -115,16 +156,10 @@ export const Sidebar: React.FC = () => {
       <div className="pt-4 border-t border-[#d4c3be] space-y-2">
         <div className="flex items-center gap-3 px-2">
           <div className="w-10 h-10 rounded-full border-2 border-[#442a22] overflow-hidden shrink-0 bg-white shadow-xs">
-            <img
-              src={defaultAvatar}
-              alt={username}
-              className="w-full h-full object-cover"
-            />
+            <img src={defaultAvatar} alt={username} className="w-full h-full object-cover" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-sans text-sm font-bold text-[#442a22] truncate">
-              {username}
-            </p>
+            <p className="font-sans text-sm font-bold text-[#442a22] truncate">{username}</p>
             <p className="text-xs text-[#504441] truncate">{title}</p>
           </div>
           <button

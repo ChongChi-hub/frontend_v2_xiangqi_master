@@ -1,6 +1,7 @@
 import React from 'react';
 import type { LeaderboardItem } from '@/types/user';
-import { Trophy, TrendingUp, Minus, TrendingDown } from 'lucide-react';
+import { TrendingUp, Minus, TrendingDown, Crown, Medal } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface RankItemProps {
   item: LeaderboardItem;
@@ -8,32 +9,46 @@ interface RankItemProps {
   isCurrentUser?: boolean;
 }
 
-export const RankItem: React.FC<RankItemProps> = ({
-  item,
-  rank,
-  isCurrentUser,
-}) => {
+export const RankItem: React.FC<RankItemProps> = ({ item, rank, isCurrentUser }) => {
+  const isTop3 = rank <= 3;
+
   const getRankBadge = () => {
     switch (rank) {
       case 1:
-        return <Trophy className="w-5 h-5 text-yellow-500" />;
+        return <Crown className="w-6 h-6 text-yellow-500 drop-shadow-md" />;
       case 2:
-        return <Trophy className="w-5 h-5 text-slate-400" />;
+        return <Medal className="w-5 h-5 text-slate-400 drop-shadow-sm" />;
       case 3:
-        return <Trophy className="w-5 h-5 text-amber-600" />;
+        return <Medal className="w-5 h-5 text-amber-600 drop-shadow-sm" />;
       default:
-        return <span className="font-serif font-bold text-xs text-[#504441]">{rank}</span>;
+        return <span className="font-serif font-bold text-sm text-[#827470]">{rank}</span>;
     }
   };
 
-  const getBorderColor = () => {
+  const getStyle = () => {
+    if (isCurrentUser) {
+      return 'bg-[#5d4037]/10 border-l-4 border-l-[#442a22] shadow-sm';
+    }
     switch (rank) {
       case 1:
-        return 'border-yellow-500/40';
+        return 'bg-gradient-to-r from-yellow-500/10 to-transparent border-l-4 border-l-yellow-500 shadow-sm';
       case 2:
-        return 'border-slate-300';
+        return 'bg-gradient-to-r from-slate-400/10 to-transparent border-l-4 border-l-slate-400 shadow-sm';
       case 3:
-        return 'border-amber-500/30';
+        return 'bg-gradient-to-r from-amber-600/10 to-transparent border-l-4 border-l-amber-600 shadow-sm';
+      default:
+        return 'bg-[#ffffff] hover:bg-[#f6f3f2]/50 border-l-4 border-l-transparent';
+    }
+  };
+
+  const getAvatarBorder = () => {
+    switch (rank) {
+      case 1:
+        return 'border-yellow-500 ring-2 ring-yellow-500/30';
+      case 2:
+        return 'border-slate-300 ring-2 ring-slate-300/30';
+      case 3:
+        return 'border-amber-600/70 ring-2 ring-amber-600/20';
       default:
         return 'border-[#d4c3be]/40';
     }
@@ -49,38 +64,47 @@ export const RankItem: React.FC<RankItemProps> = ({
     'https://lh3.googleusercontent.com/aida-public/AB6AXuDHDRcOs7ncvcOBUMISVy1a_NpuPcNcRO4kuyUvrqPAGmZd3FAt-6EHm48k72xsNwSIeEEYn92-ZMMeC-z9Zp0Zm2VMtHAEyz1slxIsyLxx4P_NEUikiFKRYJu84IrxDWPxNU2XZ0YtNb6y1oTmZVrm63FDlxF0SImne4yPrm9Rsg_infXqFLwuNGHZHRlIznVuYoC-_zR-5upV2XSKEU_5SxCeB0c_mqwfTZQcKDBf2S_A-5KTzzTv';
 
   return (
-    <div
-      className={`flex items-center gap-3 px-4 py-3 border-b border-[#d4c3be]/30 transition-colors ${
-        isCurrentUser
-          ? 'bg-[#5d4037]/10 border-l-4 border-l-[#442a22]'
-          : rank === 1
-          ? 'bg-[#f6f3f2]'
-          : 'bg-[#ffffff] hover:bg-[#f6f3f2]/50'
-      }`}
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, delay: rank * 0.05 }}
+      className={`flex items-center gap-3 px-4 py-3 border-b border-[#d4c3be]/30 transition-all duration-300 ${getStyle()}`}
     >
       {/* Rank Badge */}
-      <div className="flex flex-col items-center justify-center w-6 shrink-0">
+      <div className="flex flex-col items-center justify-center w-8 shrink-0">
         {getRankBadge()}
       </div>
 
       {/* Avatar */}
       <div
-        className={`w-9 h-9 rounded-full border-2 ${getBorderColor()} overflow-hidden shrink-0 bg-white`}
+        className={`relative w-10 h-10 rounded-full border-2 ${getAvatarBorder()} overflow-hidden shrink-0 bg-white`}
       >
         <img src={defaultAvatar} alt={item.username} className="w-full h-full object-cover" />
       </div>
 
       {/* Details */}
       <div className="flex-1 min-w-0">
-        <p className="font-serif text-xs font-bold text-[#1b1c1c] truncate">
-          {item.username} {isCurrentUser && '(Bạn)'}
+        <p
+          className={`font-serif truncate ${
+            isTop3 ? 'text-sm font-bold text-[#442a22]' : 'text-xs font-semibold text-[#1b1c1c]'
+          }`}
+        >
+          {item.username} {isCurrentUser && <span className="text-[#827470] font-normal">(Bạn)</span>}
         </p>
-        <p className="text-[10px] text-[#504441]">ELO {item.eloScore}</p>
+        <p className="text-[11px] text-[#827470] mt-0.5 font-medium">
+          ELO <span className="font-bold text-[#ba1a1a]">{item.eloScore}</span>
+        </p>
       </div>
 
-      {/* Trend Icon */}
-      <div className="shrink-0">{renderTrendIcon()}</div>
-    </div>
+      {/* Stats/Trend */}
+      <div className="shrink-0 flex items-center gap-2">
+        <div className="text-right hidden sm:block">
+          <p className="text-[10px] text-[#504441] font-medium">{item.winMatches} Thắng</p>
+          <p className="text-[10px] text-[#827470]">{Math.round((item.winMatches / (item.winMatches + item.loseMatches + item.drawMatches || 1)) * 100)}% Win Rate</p>
+        </div>
+        {renderTrendIcon()}
+      </div>
+    </motion.div>
   );
 };
 

@@ -19,10 +19,18 @@ export const userService = {
    * Lấy danh sách bảng xếp hạng ELO động
    */
   async getLeaderboard(page = 1, limit = 10): Promise<LeaderboardResponse> {
-    const response = await apiClient.get<LeaderboardResponse>('/users/leaderboard', {
+    const response = await apiClient.get<any>('/users/leaderboard', {
       params: { page, limit },
     });
-    return response.data;
+    return {
+      leaderboard: response.data.data || [],
+      pagination: {
+        total: response.data.total,
+        page: response.data.page,
+        limit,
+        totalPages: response.data.totalPages,
+      }
+    };
   },
   /**
    * Lưu kết quả trận đấu PVE

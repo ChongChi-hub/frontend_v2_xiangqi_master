@@ -65,3 +65,15 @@
 .delay-200 { animation-delay: 200ms; }
 .delay-300 { animation-delay: 300ms; }
 .delay-400 { animation-delay: 400ms; }
+
+.custom-leaderboard-table .ant-table-thead > tr > th {
+  background-color: #f6f3f2 !important;
+  color: #442a22 !important;
+  font-weight: 700 !important;
+  border-bottom: 2px solid #d4c3be !important;
+}
+
+.custom-leaderboard-table .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #d4c3be80 !important;
+}
+

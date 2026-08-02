@@ -86,7 +86,7 @@ export const Sidebar: React.FC = () => {
     },
     {
       label: 'Xếp hạng',
-      path: '#leaderboard',
+      path: '/leaderboard',
       icon: <Trophy className="w-5 h-5" />,
     },
     {

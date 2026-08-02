@@ -6,10 +6,10 @@ export const useUserProfile = () => {
   const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
   return useQuery({
-    queryKey: ['userProfile'],
+    queryKey: ['userProfile', token],
     queryFn: () => userService.getUserProfile(),
     enabled: !!token,
-    staleTime: 1000 * 60 * 3, // 3 minutes cache
+    staleTime: 1000 * 60 * 3, // 3 minutes cache per token
     retry: 1,
   });
 };

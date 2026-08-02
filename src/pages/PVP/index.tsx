@@ -45,26 +45,27 @@ export const PvpPage: React.FC<PvpPageProps> = ({
   const { data: profileData } = useUserProfile();
   const { setActiveMatch, clearActiveMatch } = useMatchStore();
 
-  // Extract User ID & Username safely
+  // Extract User ID & Username safely, prioritizing active logged-in user from authStore
   const currentUserId = useMemo(() => {
-    return (
-      (profileData as unknown as { userId?: string })?.userId ||
-      profileData?.user?.id ||
-      (profileData?.user as unknown as { userId?: string })?.userId ||
-      authUser?.id ||
-      (authUser as unknown as { userId?: string })?.userId ||
-      ''
-    );
-  }, [profileData, authUser]);
+    if (authUser?.id) return authUser.id;
+    if ((authUser as unknown as { userId?: string })?.userId) {
+      return (authUser as unknown as { userId?: string }).userId!;
+    }
+    if ((profileData as unknown as { userId?: string })?.userId) {
+      return (profileData as unknown as { userId?: string }).userId!;
+    }
+    if (profileData?.user?.id) return profileData.user.id;
+    return '';
+  }, [authUser, profileData]);
 
   const currentUsername = useMemo(() => {
-    return (
-      (profileData as unknown as { username?: string })?.username ||
-      profileData?.user?.username ||
-      authUser?.username ||
-      ''
-    );
-  }, [profileData, authUser]);
+    if (authUser?.username) return authUser.username;
+    if ((profileData as unknown as { username?: string })?.username) {
+      return (profileData as unknown as { username?: string }).username!;
+    }
+    if (profileData?.user?.username) return profileData.user.username;
+    return '';
+  }, [authUser, profileData]);
 
   // Initial match data passed via router navigation state or prop override
   const routerMatchData = (initialMatchDataOverride || location.state) as MatchFoundData | null;

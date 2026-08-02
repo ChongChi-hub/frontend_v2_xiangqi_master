@@ -15,7 +15,7 @@ interface LeaderboardSidebarProps {
 export const LeaderboardSidebar: React.FC<LeaderboardSidebarProps> = ({
   items,
   currentUserElo = 1200,
-  currentUsername = 'Kỳ Thủ (Bạn)',
+  currentUsername = 'Kỳ Thủ',
   isLoading,
 }) => {
   const displayList = items || [];
@@ -48,7 +48,12 @@ export const LeaderboardSidebar: React.FC<LeaderboardSidebarProps> = ({
           ) : displayList.length > 0 ? (
             <div className="flex flex-col">
               {displayList.map((item, index) => (
-                <RankItem key={item.id || index} item={item} rank={index + 1} />
+                <RankItem 
+                  key={item.id || index} 
+                  item={item} 
+                  rank={index + 1} 
+                  isCurrentUser={item.username === currentUsername}
+                />
               ))}
 
               {/* Current User Simulated Row - Only show if not in top list */}

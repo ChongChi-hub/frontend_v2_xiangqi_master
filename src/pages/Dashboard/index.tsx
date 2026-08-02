@@ -83,7 +83,7 @@ export const DashboardPage: React.FC = () => {
               <LeaderboardSidebar
                 items={leaderboardData?.leaderboard}
                 currentUserElo={eloScore}
-                currentUsername={`${username} (Bạn)`}
+                currentUsername={username}
                 isLoading={isLeaderboardLoading}
               />
             </div>

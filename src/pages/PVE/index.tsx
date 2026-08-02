@@ -1,11 +1,26 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { message } from 'antd';
-import { Play } from 'lucide-react';
+import {
+  type BoardGrid,
+  type Position,
+  type MoveRecord,
+  INITIAL_FEN,
+  fenToBoard,
+  boardToFen,
+  getPieceColor,
+  getLegalMoves,
+  formatUciMove,
+  parseUciMove,
+} from '@/utils/xiangqi';
+import { XiangqiBoard } from '@/components/PVE/XiangqiBoard';
+import { EvaluationBar } from '@/components/PVE/EvaluationBar';
+import { BoardControls } from '@/components/PVE/BoardControls';
+import { MoveHistory } from '@/components/PVE/MoveHistory';
 import { DifficultySelector } from '@/components/PVE/DifficultySelector';
-import { GameModeSelector } from '@/components/PVE/GameModeSelector';
 import { BoardSettings } from '@/components/PVE/BoardSettings';
-import type { AIDifficultyLevel, GameMode, BoardType, PieceStyle } from '@/types/ai';
+import aiService from '@/services/ai.service';
+import type { AIDifficultyLevel, BoardType, PieceStyle } from '@/types/ai';
 
 export const PvePage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -14,91 +29,278 @@ export const PvePage: React.FC = () => {
   const [difficulty, setDifficulty] = useState<AIDifficultyLevel>(
     urlDifficulty || 'apprentice'
   );
-  const [mode, setMode] = useState<GameMode>('practice');
   const [boardType, setBoardType] = useState<BoardType>('wood');
   const [pieceStyle, setPieceStyle] = useState<PieceStyle>('classic');
-  const [isStarting, setIsStarting] = useState(false);
 
-  const handleStartGame = () => {
-    setIsStarting(true);
-    message.loading({ content: 'Đang khởi tạo bàn cờ và kết nối Engine AI...', key: 'pve_start' });
+  // Game state
+  const [fenHistory, setFenHistory] = useState<string[]>([INITIAL_FEN]);
+  const [boardState, setBoardState] = useState<BoardGrid>(
+    () => fenToBoard(INITIAL_FEN).board
+  );
+  const [turn, setTurn] = useState<'red' | 'black'>('red');
+  const [selectedPos, setSelectedPos] = useState<Position | null>(null);
+  const [validMoves, setValidMoves] = useState<Position[]>([]);
+  const [lastMove, setLastMove] = useState<{ from: Position; to: Position } | null>(null);
+  const [hintMove, setHintMove] = useState<{ from: Position; to: Position } | null>(null);
+  const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
+  const [evaluationScore, setEvaluationScore] = useState<number>(0.0);
+  const [isAiThinking, setIsAiThinking] = useState<boolean>(false);
+  const [isHintLoading, setIsHintLoading] = useState<boolean>(false);
 
-    setTimeout(() => {
-      setIsStarting(false);
-      message.success({
-        content: `Đã bắt đầu trận đấu với AI (${
-          difficulty === 'beginner'
-            ? 'Nhập môn'
-            : difficulty === 'apprentice'
-            ? 'Tập sự'
-            : difficulty === 'intermediate'
-            ? 'Trung cấp'
-            : difficulty === 'master'
-            ? 'Cao thủ'
-            : 'Đại kiện tướng'
-        } - ${mode === 'practice' ? 'Luyện tập' : 'Tính điểm'})!`,
-        key: 'pve_start',
-        duration: 4,
+  // Trigger Pikafish AI move
+  const makeAiMove = async (currentFen: string) => {
+    setIsAiThinking(true);
+    try {
+      const res = await aiService.getAIMove({
+        fen: currentFen,
+        difficulty,
       });
-    }, 1200);
+
+      if (res.evaluationScore !== undefined) {
+        setEvaluationScore(res.evaluationScore);
+      }
+
+      if (res.bestMove) {
+        const parsed = parseUciMove(res.bestMove);
+        if (parsed) {
+          const { from, to } = parsed;
+          setBoardState((prevBoard) => {
+            const nextBoard = prevBoard.map((row) => [...row]);
+            const piece = nextBoard[from.row][from.col];
+            const destPiece = nextBoard[to.row][to.col];
+            nextBoard[to.row][to.col] = piece;
+            nextBoard[from.row][from.col] = null;
+
+            if (piece) {
+              const moveRec: MoveRecord = {
+                from,
+                to,
+                piece,
+                captured: destPiece,
+                moveStr: res.bestMove,
+              };
+              setMoveHistory((prev) => [...prev, moveRec]);
+              const newFen = boardToFen(nextBoard, 'red');
+              setFenHistory((prev) => [...prev, newFen]);
+            }
+            return nextBoard;
+          });
+
+          setLastMove({ from, to });
+          setTurn('red');
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching AI move:', err);
+      message.error('Không thể kết nối Pikafish Engine AI');
+    } finally {
+      setIsAiThinking(false);
+    }
+  };
+
+  // Handle Square Clicks by Player
+  const handleSquareClick = (pos: Position) => {
+    if (isAiThinking || turn !== 'red') return;
+
+    const clickedPiece = boardState[pos.row][pos.col];
+    const clickedColor = getPieceColor(clickedPiece);
+
+    // Clicked on own piece -> select and highlight legal moves
+    if (clickedColor === 'red') {
+      setSelectedPos(pos);
+      const moves = getLegalMoves(boardState, pos);
+      setValidMoves(moves);
+      return;
+    }
+
+    // Clicked on valid target square -> execute player move
+    if (selectedPos) {
+      const isValid = validMoves.some((m) => m.row === pos.row && m.col === pos.col);
+      if (isValid) {
+        const from = selectedPos;
+        const to = pos;
+        const moveStr = formatUciMove(from, to);
+        const movingPiece = boardState[from.row][from.col];
+        const capturedPiece = boardState[to.row][to.col];
+
+        if (!movingPiece) return;
+
+        // Execute Move
+        const nextBoard = boardState.map((row) => [...row]);
+        nextBoard[to.row][to.col] = movingPiece;
+        nextBoard[from.row][from.col] = null;
+
+        setBoardState(nextBoard);
+        setLastMove({ from, to });
+        setSelectedPos(null);
+        setValidMoves([]);
+        setHintMove(null);
+
+        const moveRec: MoveRecord = {
+          from,
+          to,
+          piece: movingPiece,
+          captured: capturedPiece,
+          moveStr,
+        };
+        setMoveHistory((prev) => [...prev, moveRec]);
+
+        const nextFen = boardToFen(nextBoard, 'black');
+        setFenHistory((prev) => [...prev, nextFen]);
+        setTurn('black');
+
+        // Request AI move for Black
+        makeAiMove(nextFen);
+      } else {
+        setSelectedPos(null);
+        setValidMoves([]);
+      }
+    }
+  };
+
+  // Handle AI Hint Request
+  const handleHint = async () => {
+    if (isAiThinking || isHintLoading) return;
+
+    const currentFen = boardToFen(boardState, turn);
+    setIsHintLoading(true);
+
+    try {
+      const res = await aiService.getAIHint({
+        fen: currentFen,
+        difficulty,
+      });
+
+      if (res.suggestedMove) {
+        const parsed = parseUciMove(res.suggestedMove);
+        if (parsed) {
+          setHintMove(parsed);
+          message.info({
+            content: res.explanation || `Gợi ý nước đi: ${res.suggestedMove}`,
+            duration: 4,
+          });
+        }
+      }
+    } catch {
+      message.error('Không thể lấy gợi ý từ Pikafish AI');
+    } finally {
+      setIsHintLoading(false);
+    }
+  };
+
+  // Handle Undo Move (reverts 2 moves: Player + AI)
+  const handleUndo = () => {
+    if (fenHistory.length <= 2 || isAiThinking) return;
+
+    const newFenHistory = fenHistory.slice(0, fenHistory.length - 2);
+    const newMoveHistory = moveHistory.slice(0, moveHistory.length - 2);
+
+    const prevFen = newFenHistory[newFenHistory.length - 1];
+    const { board } = fenToBoard(prevFen);
+
+    setFenHistory(newFenHistory);
+    setMoveHistory(newMoveHistory);
+    setBoardState(board);
+    setTurn('red');
+    setSelectedPos(null);
+    setValidMoves([]);
+    setLastMove(null);
+    setHintMove(null);
+    message.success('Đã đi lại 1 nước!');
+  };
+
+  // Handle Restart Match
+  const handleRestart = () => {
+    const { board } = fenToBoard(INITIAL_FEN);
+    setBoardState(board);
+    setFenHistory([INITIAL_FEN]);
+    setMoveHistory([]);
+    setTurn('red');
+    setSelectedPos(null);
+    setValidMoves([]);
+    setLastMove(null);
+    setHintMove(null);
+    setEvaluationScore(0.0);
+    message.success('Đã khởi tạo lại bàn cờ mới!');
+  };
+
+  // Handle Resign
+  const handleResign = () => {
+    message.warning('Bạn đã xin hòa / đầu hàng ván đấu này!');
   };
 
   return (
-    <div className="w-full flex flex-col bg-[#fcf9f8] min-h-screen text-[#1b1c1c]">
-      {/* Top Banner / Title Header */}
-      <div className="w-full bg-[#f6f3f2] border-b border-[#d4c3be] px-6 md:px-16 py-6 shadow-xs">
+    <div className="w-full flex flex-col bg-[#fcf9f8] min-h-screen text-[#1b1c1c] pb-12">
+      {/* Top Banner Header */}
+      <div className="w-full bg-[#f6f3f2] border-b border-[#d4c3be] px-4 sm:px-8 md:px-16 py-5 shadow-xs">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#442a22]">
-              Đấu với AI
+            <h1 className="text-2xl md:text-3xl font-serif font-bold text-[#442a22]">
+              Đấu Với Pikafish AI
             </h1>
-            <p className="text-sm text-[#504441] mt-1 font-sans">
-              Rèn luyện kỹ năng Cờ Tướng cùng trí tuệ nhân tạo thông minh.
+            <p className="text-xs sm:text-sm text-[#504441] mt-1 font-sans">
+              Trải nghiệm Pikafish Engine NNUE - Trí tuệ nhân tạo Cờ Tướng đỉnh cao.
             </p>
           </div>
-          <div className="hidden sm:flex items-center gap-2 bg-[#e4e2e1] px-4 py-2 rounded-lg border border-[#d4c3be]">
-            <span className="w-2.5 h-2.5 bg-[#4CAF50] rounded-full animate-pulse" />
-            <span className="text-xs font-semibold text-[#442a22]">Engine Ready</span>
+          <div className="hidden sm:flex items-center gap-2 bg-[#e4e2e1] px-3.5 py-1.5 rounded-lg border border-[#d4c3be]">
+            <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
+            <span className="text-xs font-bold text-[#442a22]">Pikafish AVX2 Active</span>
           </div>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <main className="max-w-[1400px] mx-auto w-full px-4 sm:px-8 md:px-16 py-8 space-y-10 flex-1">
-        {/* Section 1: Difficulty Selection */}
+      {/* Main Content Arena */}
+      <main className="max-w-[1400px] mx-auto w-full px-4 sm:px-8 md:px-12 py-6 space-y-8 flex-1">
+        {/* Top Control Bar: Difficulty Selector */}
         <DifficultySelector
           selectedDifficulty={difficulty}
           onSelect={(level) => setDifficulty(level)}
         />
 
-        {/* Grid for Modes and Board Settings */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Section 2: Play Modes */}
-          <GameModeSelector
-            selectedMode={mode}
-            onSelect={(selectedMode) => setMode(selectedMode)}
-          />
+        {/* Game Layout (Grid 12 cols: Board on 7 cols, Side panel on 5 cols) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left / Main Column: Xiangqi Board & Action Buttons (7 cols) */}
+          <div className="lg:col-span-7 space-y-6">
+            <EvaluationBar
+              score={evaluationScore}
+              difficulty={difficulty}
+              isThinking={isAiThinking}
+            />
 
-          {/* Section 3: Board Settings */}
-          <BoardSettings
-            selectedBoard={boardType}
-            selectedPieceStyle={pieceStyle}
-            onSelectBoard={(board) => setBoardType(board)}
-            onSelectPieceStyle={(style) => setPieceStyle(style)}
-          />
-        </div>
+            <XiangqiBoard
+              board={boardState}
+              selectedPos={selectedPos}
+              validMoves={validMoves}
+              lastMove={lastMove}
+              hintMove={hintMove}
+              onSquareClick={handleSquareClick}
+              boardType={boardType}
+              pieceStyle={pieceStyle}
+              isAiThinking={isAiThinking}
+            />
 
-        {/* Start Match Action Section */}
-        <div className="flex justify-center pt-6 pb-12">
-          <button
-            type="button"
-            onClick={handleStartGame}
-            disabled={isStarting}
-            className="bg-[#442a22] text-[#ffffff] px-10 py-4 rounded-xl font-serif text-xl font-bold shadow-lg hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 cursor-pointer border border-[#5d4037] disabled:opacity-50"
-          >
-            <Play className="w-6 h-6 fill-current text-white" />
-            <span>{isStarting ? 'Đang chuẩn bị...' : 'Bắt đầu trận đấu'}</span>
-          </button>
+            <BoardControls
+              onUndo={handleUndo}
+              onHint={handleHint}
+              onResign={handleResign}
+              onRestart={handleRestart}
+              canUndo={fenHistory.length > 2}
+              isAiThinking={isAiThinking}
+              isHintLoading={isHintLoading}
+            />
+          </div>
+
+          {/* Right Column: Move History & Board Settings (5 cols) */}
+          <div className="lg:col-span-5 space-y-6">
+            <MoveHistory history={moveHistory} />
+
+            <BoardSettings
+              selectedBoard={boardType}
+              selectedPieceStyle={pieceStyle}
+              onSelectBoard={(b) => setBoardType(b)}
+              onSelectPieceStyle={(s) => setPieceStyle(s)}
+            />
+          </div>
         </div>
       </main>
     </div>

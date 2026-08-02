@@ -111,6 +111,43 @@ class SocketService {
     socket.emit('get_match_info', { matchId });
   }
 
+  // --- Private Room Methods ---
+
+  public createPrivateRoom(settings: { totalRounds: number; timeControl: number; hostSide: string }): void {
+    const socket = this.connect();
+    console.log(`[SocketService] Emitting create_private_room with settings`, settings);
+    socket.emit('create_private_room', settings);
+  }
+
+  public joinPrivateRoom(roomCode: string): void {
+    const socket = this.connect();
+    console.log(`[SocketService] Emitting join_private_room for ${roomCode}...`);
+    socket.emit('join_private_room', { roomCode });
+  }
+
+  public cancelPrivateRoom(roomCode: string): void {
+    if (this.socket) {
+      console.log(`[SocketService] Emitting cancel_private_room for ${roomCode}...`);
+      this.socket.emit('cancel_private_room', { roomCode });
+    }
+  }
+
+  public leavePrivateRoom(roomCode: string): void {
+    if (this.socket) {
+      console.log(`[SocketService] Emitting leave_private_room for ${roomCode}...`);
+      this.socket.emit('leave_private_room', { roomCode });
+    }
+  }
+
+  public sendPrivateMove(roomCode: string, fen: string, moveStr: string): void {
+    if (this.socket) {
+      console.log(`[SocketService] Emitting private_make_move for room ${roomCode}: ${moveStr}`);
+      this.socket.emit('private_make_move', { roomCode, fen, moveStr });
+    }
+  }
+
+  // --- End Private Room Methods ---
+
   public sendMove(matchId: string, fen: string, moveStr: string, timeCost: number = 0): void {
     if (this.socket) {
       console.log(`[SocketService] Emitting make_move for match ${matchId}: ${moveStr}`);

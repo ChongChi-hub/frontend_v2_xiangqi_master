@@ -95,12 +95,12 @@ export const RoomsPage: React.FC = () => {
 
   // 1. Generate new private room
   const handleCreateRoom = () => {
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setCreatedRoomCode(code);
-    const chosenSide = side === 'random' ? (Math.random() > 0.5 ? 'red' : 'black') : side;
-    setPlayerSide(chosenSide);
-    socketService.joinRoom(`room_${code}`);
-    message.success(`Đã tạo phòng riêng #${code}! Đang chờ đối thủ nhập mã vào phòng...`);
+    socketService.createPrivateRoom({
+      totalRounds,
+      timeControl,
+      hostSide: side
+    });
+    message.loading({ content: 'Đang tạo phòng...', key: 'create_room' });
   };
 
   const handleCopyCode = () => {
@@ -113,14 +113,14 @@ export const RoomsPage: React.FC = () => {
 
   const handleCancelCreatedRoom = () => {
     if (createdRoomCode) {
-      socketService.leaveRoom(`room_${createdRoomCode}`);
+      socketService.cancelPrivateRoom(createdRoomCode);
     }
     setCreatedRoomCode(null);
     message.info('Đã hủy phòng riêng.');
   };
 
   // 2. Start game directly inside the Private Room page
-  const handleEnterMatchLobby = useCallback((code: string, isHost: boolean = true) => {
+  const handleEnterMatchLobby = useCallback((code: string) => {
     setActiveRoomCode(code);
     setIsInMatch(true);
     setCurrentRound(1);
@@ -134,25 +134,59 @@ export const RoomsPage: React.FC = () => {
     setSelectedPos(null);
     setValidMoves([]);
     setLastMove(null);
-
-    if (isHost) {
-      setOpponentUsername('Khách (Đang đấu)');
-    } else {
-      setOpponentUsername('Chủ Phòng');
-      setPlayerSide('black');
-    }
   }, []);
 
   // Socket listener for room join events
   useEffect(() => {
     const socket = socketService.connect();
 
-    const handleUserJoined = (data: { userId: string }) => {
-      console.log('[RoomsPage] User joined room:', data);
-      if (createdRoomCode) {
-        message.success('Đối thủ đã nhập mã và tham gia phòng! Bắt đầu ván đấu...');
-        handleEnterMatchLobby(createdRoomCode, true);
+    const handleRoomCreated = (data: { roomCode: string }) => {
+      message.success({ content: `Đã tạo phòng riêng #${data.roomCode}! Đang chờ đối thủ...`, key: 'create_room' });
+      setCreatedRoomCode(data.roomCode);
+    };
+
+    const handleRoomError = (data: { message: string }) => {
+      setIsJoining(false);
+      message.error({ content: data.message, key: 'join_room_page' });
+    };
+
+    const handleRoomReady = (data: any) => {
+      setIsJoining(false);
+      message.success({
+        content: `Đối thủ đã tham gia phòng! Ván đấu bắt đầu.`,
+        key: 'join_room_page',
+      });
+      
+      const { roomCode, settings, host, guest } = data;
+      setTotalRounds(settings.totalRounds);
+      setTimeControl(settings.timeControl);
+
+      const isHost = createdRoomCode === roomCode;
+      setPlayerSide(isHost ? host.side : guest.side);
+      setOpponentUsername(isHost ? guest.username : host.username);
+      
+      handleEnterMatchLobby(roomCode);
+    };
+
+    const handleRoomCancelled = () => {
+      if (isInMatch) {
+        message.warning('Phòng đấu đã bị hủy bởi chủ phòng.');
+        setIsInMatch(false);
+        setActiveRoomCode(null);
+        setCreatedRoomCode(null);
+        setInputRoomCode('');
+      } else if (createdRoomCode) {
+        // Just closed by host itself (via button) or disconnected
+        setCreatedRoomCode(null);
+        message.info('Phòng đã bị đóng.');
       }
+    };
+
+    const handleGuestLeft = () => {
+      message.warning('Khách đã rời khỏi phòng.');
+      setIsInMatch(false);
+      setActiveRoomCode(null);
+      // Host stays in waiting room, no need to clear createdRoomCode
     };
 
     const handleMoveMade = (data: MoveMadeData) => {
@@ -188,14 +222,22 @@ export const RoomsPage: React.FC = () => {
       }
     };
 
-    socket.on('user_joined', handleUserJoined);
+    socket.on('private_room_created', handleRoomCreated);
+    socket.on('private_room_error', handleRoomError);
+    socket.on('private_room_ready', handleRoomReady);
+    socket.on('private_room_cancelled', handleRoomCancelled);
+    socket.on('private_room_guest_left', handleGuestLeft);
     socket.on('move_made', handleMoveMade);
 
     return () => {
-      socket.off('user_joined', handleUserJoined);
+      socket.off('private_room_created', handleRoomCreated);
+      socket.off('private_room_error', handleRoomError);
+      socket.off('private_room_ready', handleRoomReady);
+      socket.off('private_room_cancelled', handleRoomCancelled);
+      socket.off('private_room_guest_left', handleGuestLeft);
       socket.off('move_made', handleMoveMade);
     };
-  }, [createdRoomCode, handleEnterMatchLobby, playerSide]);
+  }, [createdRoomCode, handleEnterMatchLobby, playerSide, authUser?.id, isInMatch]);
 
   // 3. Join Room by 6-digit Code
   const handleJoinRoom = () => {
@@ -206,20 +248,11 @@ export const RoomsPage: React.FC = () => {
     }
 
     setIsJoining(true);
-    socketService.joinRoom(`room_${trimmedCode}`);
+    socketService.joinPrivateRoom(trimmedCode);
     message.loading({
       content: `Đang kết nối vào phòng riêng #${trimmedCode}...`,
       key: 'join_room_page',
     });
-
-    setTimeout(() => {
-      setIsJoining(false);
-      message.success({
-        content: `Kết nối thành công vào phòng #${trimmedCode}! Ván đấu bắt đầu.`,
-        key: 'join_room_page',
-      });
-      handleEnterMatchLobby(trimmedCode, false);
-    }, 1000);
   };
 
   // 4. Handle Square Clicks on In-Room Board with Checkmate Detection
@@ -277,7 +310,7 @@ export const RoomsPage: React.FC = () => {
 
         // Send move to room over socket
         if (activeRoomCode) {
-          socketService.sendMove(activeRoomCode, nextFen, moveStr);
+          socketService.sendPrivateMove(activeRoomCode, nextFen, moveStr);
         }
 
         // Checkmate Check
@@ -311,7 +344,7 @@ export const RoomsPage: React.FC = () => {
       okButtonProps: { danger: true },
       onOk: () => {
         if (activeRoomCode) {
-          socketService.leaveRoom(`room_${activeRoomCode}`);
+          socketService.leavePrivateRoom(activeRoomCode);
         }
         setIsInMatch(false);
         setActiveRoomCode(null);

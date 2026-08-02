@@ -305,21 +305,3 @@ export const getLegalMoves = (board: BoardGrid, pos: Position): Position[] => {
 
   return moves;
 };
-
-// Check if game is over (King is missing)
-export const checkGameOver = (board: BoardGrid): 'red' | 'black' | null => {
-  let redKingFound = false;
-  let blackKingFound = false;
-
-  for (let r = 0; r < 10; r++) {
-    for (let c = 0; c < 9; c++) {
-      if (board[r][c] === 'K') redKingFound = true;
-      if (board[r][c] === 'k') blackKingFound = true;
-    }
-  }
-
-  if (!redKingFound) return 'black'; // Red lost King
-  if (!blackKingFound) return 'red'; // Black lost King
-
-  return null;
-};

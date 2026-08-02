@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { message } from 'antd';
 import {
@@ -12,7 +12,6 @@ import {
   getLegalMoves,
   formatUciMove,
   parseUciMove,
-  checkGameOver,
 } from '@/utils/xiangqi';
 import { XiangqiBoard } from '@/components/PVE/XiangqiBoard';
 import { EvaluationBar } from '@/components/PVE/EvaluationBar';
@@ -47,16 +46,6 @@ export const PvePage: React.FC = () => {
   const [evaluationScore, setEvaluationScore] = useState<number>(0.0);
   const [isAiThinking, setIsAiThinking] = useState<boolean>(false);
   const [isHintLoading, setIsHintLoading] = useState<boolean>(false);
-  const [winner, setWinner] = useState<'red' | 'black' | null>(null);
-
-  // Check game over when board state changes
-  useEffect(() => {
-    const gameWinner = checkGameOver(boardState);
-    if (gameWinner) {
-      setWinner(gameWinner);
-      message.success(`Trận đấu kết thúc! ${gameWinner === 'red' ? 'Đỏ' : 'Đen'} thắng.`);
-    }
-  }, [boardState]);
 
   // Trigger Pikafish AI move
   const makeAiMove = async (currentFen: string) => {
@@ -111,7 +100,7 @@ export const PvePage: React.FC = () => {
 
   // Handle Square Clicks by Player
   const handleSquareClick = (pos: Position) => {
-    if (isAiThinking || turn !== 'red' || winner) return;
+    if (isAiThinking || turn !== 'red') return;
 
     const clickedPiece = boardState[pos.row][pos.col];
     const clickedColor = getPieceColor(clickedPiece);
@@ -171,7 +160,7 @@ export const PvePage: React.FC = () => {
 
   // Handle AI Hint Request
   const handleHint = async () => {
-    if (isAiThinking || isHintLoading || winner) return;
+    if (isAiThinking || isHintLoading) return;
 
     const currentFen = boardToFen(boardState, turn);
     setIsHintLoading(true);
@@ -217,7 +206,6 @@ export const PvePage: React.FC = () => {
     setValidMoves([]);
     setLastMove(null);
     setHintMove(null);
-    setWinner(null);
     message.success('Đã đi lại 1 nước!');
   };
 
@@ -233,7 +221,6 @@ export const PvePage: React.FC = () => {
     setLastMove(null);
     setHintMove(null);
     setEvaluationScore(0.0);
-    setWinner(null);
     message.success('Đã khởi tạo lại bàn cờ mới!');
   };
 

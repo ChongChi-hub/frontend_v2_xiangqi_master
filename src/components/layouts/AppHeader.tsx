@@ -14,6 +14,12 @@ export const AppHeader: React.FC = () => {
         return 'Sảnh đấu';
       case '/pve':
         return 'Đấu với AI';
+      case '/admin/dashboard':
+        return 'Tổng quan Admin';
+      case '/admin/users':
+        return 'Quản lý người dùng';
+      case '/admin/matches':
+        return 'Quản lý trận đấu';
       default:
         return 'Xiangqi Master';
     }

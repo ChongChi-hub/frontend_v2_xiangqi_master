@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
 import { getTitleFromElo } from '@/types/user';
-import { Gamepad2, Cpu, Lock, History, Trophy, LogOut } from 'lucide-react';
+import { Gamepad2, Cpu, Lock, History, Trophy, LogOut, Users } from 'lucide-react';
 import { message } from 'antd';
 
 export const Sidebar: React.FC = () => {
@@ -21,7 +21,9 @@ export const Sidebar: React.FC = () => {
   const defaultAvatar =
     'https://lh3.googleusercontent.com/aida-public/AB6AXuAVLUPKIj0KjoGE_BZ9ByvSZYW22KVP3THcqzHjv3JxYambXnO8AcIBkMKh5RgxEdUA1XXkZ-wysXcPQYg3NSicB-lluggL3sJo-fZOaqcnRMUXODnfdsXlUbSHXQyMXFKo891lakr9vQzq15IXV_jUfjD57mkQ7W9nTcdmA6l1dr-x7rdgdLx4xwQYI0Hpx0FgBy1JDPjAfbdIwh8XDB2sRGldGY9pj1Z1UHJT05uxV2HA1TVP6Cm2';
 
-  const navItems = [
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
+  const playerNavItems = [
     {
       label: 'Sảnh đấu',
       path: '/dashboard',
@@ -48,6 +50,26 @@ export const Sidebar: React.FC = () => {
       icon: <Trophy className="w-5 h-5" />,
     },
   ];
+
+  const adminNavItems = [
+    {
+      label: 'Tổng quan',
+      path: '/admin/dashboard',
+      icon: <Gamepad2 className="w-5 h-5" />,
+    },
+    {
+      label: 'Người dùng',
+      path: '/admin/users',
+      icon: <Users className="w-5 h-5" />,
+    },
+    {
+      label: 'Trận đấu',
+      path: '/admin/matches',
+      icon: <History className="w-5 h-5" />,
+    }
+  ];
+
+  const navItems = isAdminRoute ? adminNavItems : playerNavItems;
 
   return (
     <aside className="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-[#fcf9f8] border-r border-[#d4c3be] p-4 space-y-4 z-50">

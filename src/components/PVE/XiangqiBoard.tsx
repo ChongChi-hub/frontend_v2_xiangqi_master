@@ -17,7 +17,7 @@ interface XiangqiBoardProps {
   boardType?: BoardType;
   pieceStyle?: PieceStyle;
   isAiThinking?: boolean;
-  playerColor?: 'red' | 'black';
+  playerSide?: 'red' | 'black';
 }
 
 export const XiangqiBoard: React.FC<XiangqiBoardProps> = ({
@@ -29,6 +29,7 @@ export const XiangqiBoard: React.FC<XiangqiBoardProps> = ({
   onSquareClick,
   boardType = 'wood',
   isAiThinking = false,
+  playerSide = 'red',
 }) => {
   const isSelected = (r: number, c: number) =>
     selectedPos ? selectedPos.row === r && selectedPos.col === c : false;
@@ -192,8 +193,7 @@ export const XiangqiBoard: React.FC<XiangqiBoardProps> = ({
           </text>
         </svg>
 
-        {/* Board Interactive Grid (10 rows x 9 cols) */}
-        <div className="absolute inset-0 grid grid-rows-10 grid-cols-9">
+            <div className={`absolute inset-0 grid grid-rows-10 grid-cols-9 ${playerSide === 'black' ? 'rotate-180' : ''}`}>
           {Array.from({ length: 10 }).map((_, r) =>
             Array.from({ length: 9 }).map((__, c) => {
               const piece = board[r][c];
@@ -231,6 +231,8 @@ export const XiangqiBoard: React.FC<XiangqiBoardProps> = ({
                   {piece && (
                     <div
                       className={`relative z-10 w-[82%] aspect-square rounded-full flex items-center justify-center font-serif font-black text-lg sm:text-2xl lg:text-3xl transition-all duration-200 transform ${
+                        playerSide === 'black' ? 'rotate-180' : ''
+                      } ${
                         selected
                           ? 'scale-110 ring-4 ring-amber-500 shadow-2xl -translate-y-1 z-30'
                           : 'hover:scale-105 active:scale-95 shadow-lg'

@@ -10,22 +10,13 @@ interface LeaderboardSidebarProps {
   isLoading?: boolean;
 }
 
-// Fallback mock leaderboard if backend is loading/empty
-const MOCK_LEADERBOARD: LeaderboardItem[] = [
-  { id: '1', username: 'Thiên Hạ Đệ Nhất', eloScore: 2840, winMatches: 310, loseMatches: 20, drawMatches: 5 },
-  { id: '2', username: 'Trạng Nguyên', eloScore: 2715, winMatches: 245, loseMatches: 35, drawMatches: 12 },
-  { id: '3', username: 'Lão Kỳ Vương', eloScore: 2650, winMatches: 198, loseMatches: 40, drawMatches: 22 },
-  { id: '4', username: 'Vua Cờ Vây', eloScore: 2410, winMatches: 150, loseMatches: 50, drawMatches: 10 },
-  { id: '5', username: 'Độc Cô Cầu Bại', eloScore: 2320, winMatches: 130, loseMatches: 45, drawMatches: 8 },
-];
-
 export const LeaderboardSidebar: React.FC<LeaderboardSidebarProps> = ({
   items,
-  currentUserElo = 1850,
+  currentUserElo = 1200,
   currentUsername = 'Kỳ Thủ (Bạn)',
   isLoading,
 }) => {
-  const displayList = items && items.length > 0 ? items : MOCK_LEADERBOARD;
+  const displayList = items || [];
 
   return (
     <aside className="w-full space-y-6">
@@ -49,7 +40,7 @@ export const LeaderboardSidebar: React.FC<LeaderboardSidebarProps> = ({
                 <div key={n} className="h-10 bg-[#f0eded] rounded-md animate-pulse" />
               ))}
             </div>
-          ) : (
+          ) : displayList.length > 0 ? (
             <>
               {displayList.map((item, index) => (
                 <RankItem key={item.id || index} item={item} rank={index + 1} />
@@ -65,10 +56,14 @@ export const LeaderboardSidebar: React.FC<LeaderboardSidebarProps> = ({
                   loseMatches: 0,
                   drawMatches: 0,
                 }}
-                rank={42}
+                rank={displayList.findIndex(u => u.username === currentUsername) > -1 ? displayList.findIndex(u => u.username === currentUsername) + 1 : displayList.length + 1}
                 isCurrentUser
               />
             </>
+          ) : (
+            <div className="p-6 text-center text-[#827470] text-sm">
+              Chưa có dữ liệu xếp hạng
+            </div>
           )}
         </div>
       </div>

@@ -20,7 +20,8 @@ import { MoveHistory } from '@/components/PVE/MoveHistory';
 import { DifficultySelector } from '@/components/PVE/DifficultySelector';
 import { BoardSettings } from '@/components/PVE/BoardSettings';
 import aiService from '@/services/ai.service';
-import type { AIDifficultyLevel, BoardType, PieceStyle } from '@/types/ai';
+import userService from '@/services/user.service';
+import type { AIDifficultyLevel, BoardType } from '@/types/ai';
 
 export const PvePage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -30,7 +31,7 @@ export const PvePage: React.FC = () => {
     urlDifficulty || 'apprentice'
   );
   const [boardType, setBoardType] = useState<BoardType>('wood');
-  const [pieceStyle, setPieceStyle] = useState<PieceStyle>('classic');
+  const [playerSide, setPlayerSide] = useState<'red' | 'black'>('red');
 
   // Game state
   const [fenHistory, setFenHistory] = useState<string[]>([INITIAL_FEN]);
@@ -46,6 +47,31 @@ export const PvePage: React.FC = () => {
   const [evaluationScore, setEvaluationScore] = useState<number>(0.0);
   const [isAiThinking, setIsAiThinking] = useState<boolean>(false);
   const [isHintLoading, setIsHintLoading] = useState<boolean>(false);
+  const [matchStatus, setMatchStatus] = useState<'playing' | 'win' | 'lose' | 'draw'>('playing');
+  const [clientMatchId, setClientMatchId] = useState<string>(() => crypto.randomUUID());
+
+  const handleMatchEnd = async (result: 'win' | 'lose' | 'draw') => {
+    if (matchStatus !== 'playing') return;
+    setMatchStatus(result);
+    
+    try {
+      const res = await userService.savePveMatch({
+        difficulty,
+        result,
+        playerSide,
+        clientMatchId,
+      });
+      if (res.reward > 0) {
+        message.success(`Bạn đã thắng! Nhận được ${res.reward} ELO`);
+      } else if (result === 'lose') {
+        message.error('Bạn đã thua!');
+      } else {
+        message.info('Ván cờ hòa!');
+      }
+    } catch (err) {
+      console.error('Lỗi lưu kết quả trận đấu:', err);
+    }
+  };
 
   // Trigger Pikafish AI move
   const makeAiMove = async (currentFen: string) => {
@@ -83,12 +109,20 @@ export const PvePage: React.FC = () => {
               const newFen = boardToFen(nextBoard, 'red');
               setFenHistory((prev) => [...prev, newFen]);
             }
+            if (destPiece === 'K' || destPiece === 'k') {
+              handleMatchEnd('lose');
+            }
             return nextBoard;
           });
 
           setLastMove({ from, to });
-          setTurn('red');
+          setTurn(playerSide);
+        } else {
+          // parseUciMove returned null (e.g., "(none)"), AI has no moves
+          handleMatchEnd('win');
         }
+      } else {
+        handleMatchEnd('win');
       }
     } catch (err) {
       console.error('Error fetching AI move:', err);
@@ -100,13 +134,13 @@ export const PvePage: React.FC = () => {
 
   // Handle Square Clicks by Player
   const handleSquareClick = (pos: Position) => {
-    if (isAiThinking || turn !== 'red') return;
+    if (isAiThinking || turn !== playerSide || matchStatus !== 'playing') return;
 
     const clickedPiece = boardState[pos.row][pos.col];
     const clickedColor = getPieceColor(clickedPiece);
 
     // Clicked on own piece -> select and highlight legal moves
-    if (clickedColor === 'red') {
+    if (clickedColor === playerSide) {
       setSelectedPos(pos);
       const moves = getLegalMoves(boardState, pos);
       setValidMoves(moves);
@@ -145,12 +179,16 @@ export const PvePage: React.FC = () => {
         };
         setMoveHistory((prev) => [...prev, moveRec]);
 
-        const nextFen = boardToFen(nextBoard, 'black');
+        const nextFen = boardToFen(nextBoard, playerSide === 'red' ? 'black' : 'red');
         setFenHistory((prev) => [...prev, nextFen]);
-        setTurn('black');
+        setTurn(playerSide === 'red' ? 'black' : 'red');
 
-        // Request AI move for Black
-        makeAiMove(nextFen);
+        if (capturedPiece === 'K' || capturedPiece === 'k') {
+          handleMatchEnd('win');
+        } else {
+          // Request AI move
+          makeAiMove(nextFen);
+        }
       } else {
         setSelectedPos(null);
         setValidMoves([]);
@@ -210,7 +248,8 @@ export const PvePage: React.FC = () => {
   };
 
   // Handle Restart Match
-  const handleRestart = () => {
+  const handleRestart = (newSide?: 'red' | 'black') => {
+    const side = newSide ?? playerSide;
     const { board } = fenToBoard(INITIAL_FEN);
     setBoardState(board);
     setFenHistory([INITIAL_FEN]);
@@ -221,12 +260,29 @@ export const PvePage: React.FC = () => {
     setLastMove(null);
     setHintMove(null);
     setEvaluationScore(0.0);
-    message.success('Đã khởi tạo lại bàn cờ mới!');
+    setMatchStatus('playing');
+    setClientMatchId(crypto.randomUUID());
+    
+    if (side === 'black') {
+      makeAiMove(INITIAL_FEN);
+    }
+    
+    if (!newSide) {
+      message.success('Đã khởi tạo lại bàn cờ mới!');
+    } else {
+      message.success(`Đã đổi sang phe ${side === 'red' ? 'Đỏ' : 'Đen'}!`);
+    }
+  };
+
+  const handleSideChange = (side: 'red' | 'black') => {
+    setPlayerSide(side);
+    handleRestart(side);
   };
 
   // Handle Resign
   const handleResign = () => {
-    message.warning('Bạn đã xin hòa / đầu hàng ván đấu này!');
+    if (matchStatus !== 'playing') return;
+    handleMatchEnd('lose');
   };
 
   return (
@@ -264,6 +320,8 @@ export const PvePage: React.FC = () => {
             <EvaluationBar
               score={evaluationScore}
               difficulty={difficulty}
+              playerSide={playerSide}
+              turn={turn}
               isThinking={isAiThinking}
             />
 
@@ -275,7 +333,7 @@ export const PvePage: React.FC = () => {
               hintMove={hintMove}
               onSquareClick={handleSquareClick}
               boardType={boardType}
-              pieceStyle={pieceStyle}
+              playerSide={playerSide}
               isAiThinking={isAiThinking}
             />
 
@@ -296,9 +354,9 @@ export const PvePage: React.FC = () => {
 
             <BoardSettings
               selectedBoard={boardType}
-              selectedPieceStyle={pieceStyle}
+              playerSide={playerSide}
               onSelectBoard={(b) => setBoardType(b)}
-              onSelectPieceStyle={(s) => setPieceStyle(s)}
+              onSelectSide={(s) => handleSideChange(s)}
             />
           </div>
         </div>

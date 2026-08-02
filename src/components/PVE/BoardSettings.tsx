@@ -1,18 +1,18 @@
 import React from 'react';
-import type { BoardType, PieceStyle } from '@/types/ai';
+import type { BoardType } from '@/types/ai';
 
 interface BoardSettingsProps {
   selectedBoard: BoardType;
-  selectedPieceStyle: PieceStyle;
+  playerSide: 'red' | 'black';
   onSelectBoard: (board: BoardType) => void;
-  onSelectPieceStyle: (style: PieceStyle) => void;
+  onSelectSide: (side: 'red' | 'black') => void;
 }
 
 export const BoardSettings: React.FC<BoardSettingsProps> = ({
   selectedBoard,
-  selectedPieceStyle,
+  playerSide,
   onSelectBoard,
-  onSelectPieceStyle,
+  onSelectSide,
 }) => {
   return (
     <section className="space-y-4">
@@ -69,67 +69,45 @@ export const BoardSettings: React.FC<BoardSettingsProps> = ({
           </div>
         </div>
 
-        {/* Piece Style Selection */}
+        {/* Side Selection */}
         <div className="space-y-2">
-          <p className="text-sm font-bold text-[#442a22] font-serif">Kiểu quân cờ</p>
+          <p className="text-sm font-bold text-[#442a22] font-serif">Chọn phe (Bắt đầu lại)</p>
           <div className="flex items-center gap-6">
-            {/* Classic */}
             <button
               type="button"
-              onClick={() => onSelectPieceStyle('classic')}
+              onClick={() => onSelectSide('red')}
               className={`flex flex-col items-center gap-1.5 cursor-pointer transition-all ${
-                selectedPieceStyle === 'classic' ? 'opacity-100 scale-105' : 'opacity-60 hover:opacity-100'
+                playerSide === 'red' ? 'opacity-100 scale-105' : 'opacity-60 hover:opacity-100'
               }`}
             >
               <div
                 className={`w-12 h-12 rounded-full border-2 flex items-center justify-center bg-[#ffffff] text-[#ba1a1a] font-serif text-xl shadow-sm ${
-                  selectedPieceStyle === 'classic' ? 'border-[#442a22] ring-2 ring-[#442a22]/20' : 'border-[#d4c3be]'
+                  playerSide === 'red' ? 'border-[#442a22] ring-2 ring-[#442a22]/20' : 'border-[#d4c3be]'
                 }`}
               >
                 帥
               </div>
-              <span className={`text-xs ${selectedPieceStyle === 'classic' ? 'font-bold text-[#442a22]' : 'text-[#504441]'}`}>
-                Cổ điển
+              <span className={`text-xs ${playerSide === 'red' ? 'font-bold text-[#442a22]' : 'text-[#504441]'}`}>
+                Cầm Đỏ (Đi trước)
               </span>
             </button>
 
-            {/* Modern */}
             <button
               type="button"
-              onClick={() => onSelectPieceStyle('modern')}
+              onClick={() => onSelectSide('black')}
               className={`flex flex-col items-center gap-1.5 cursor-pointer transition-all ${
-                selectedPieceStyle === 'modern' ? 'opacity-100 scale-105' : 'opacity-60 hover:opacity-100'
+                playerSide === 'black' ? 'opacity-100 scale-105' : 'opacity-60 hover:opacity-100'
               }`}
             >
               <div
-                className={`w-12 h-12 rounded-full border flex items-center justify-center bg-[#ffffff] text-[#1b1c1c] font-serif text-xl shadow-sm ${
-                  selectedPieceStyle === 'modern' ? 'border-[#442a22] ring-2 ring-[#442a22]/20' : 'border-[#d4c3be]'
+                className={`w-12 h-12 rounded-full border-2 flex items-center justify-center bg-[#1b1c1c] text-[#ffffff] font-serif text-xl shadow-sm ${
+                  playerSide === 'black' ? 'border-[#442a22] ring-2 ring-[#442a22]/20' : 'border-[#d4c3be]'
                 }`}
               >
-                帥
+                將
               </div>
-              <span className={`text-xs ${selectedPieceStyle === 'modern' ? 'font-bold text-[#442a22]' : 'text-[#504441]'}`}>
-                Hiện đại
-              </span>
-            </button>
-
-            {/* Symbol */}
-            <button
-              type="button"
-              onClick={() => onSelectPieceStyle('symbol')}
-              className={`flex flex-col items-center gap-1.5 cursor-pointer transition-all ${
-                selectedPieceStyle === 'symbol' ? 'opacity-100 scale-105' : 'opacity-60 hover:opacity-100'
-              }`}
-            >
-              <div
-                className={`w-12 h-12 rounded-full border flex items-center justify-center bg-[#ffffff] text-[#1b1c1c] font-sans font-bold text-lg shadow-sm ${
-                  selectedPieceStyle === 'symbol' ? 'border-[#442a22] ring-2 ring-[#442a22]/20' : 'border-[#d4c3be]'
-                }`}
-              >
-                K
-              </div>
-              <span className={`text-xs ${selectedPieceStyle === 'symbol' ? 'font-bold text-[#442a22]' : 'text-[#504441]'}`}>
-                Ký hiệu
+              <span className={`text-xs ${playerSide === 'black' ? 'font-bold text-[#442a22]' : 'text-[#504441]'}`}>
+                Cầm Đen (Đi sau)
               </span>
             </button>
           </div>

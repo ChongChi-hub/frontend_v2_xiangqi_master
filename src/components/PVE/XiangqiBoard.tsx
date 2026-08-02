@@ -3,7 +3,7 @@ import {
   type BoardGrid,
   type Position,
   getPieceColor,
-  getPieceName,
+  getPieceChineseName,
 } from '@/utils/xiangqi';
 import type { BoardType, PieceStyle } from '@/types/ai';
 
@@ -198,7 +198,7 @@ export const XiangqiBoard: React.FC<XiangqiBoardProps> = ({
             Array.from({ length: 9 }).map((__, c) => {
               const piece = board[r][c];
               const pieceColor = getPieceColor(piece);
-              const name = getPieceName(piece);
+              const name = getPieceChineseName(piece);
               const selected = isSelected(r, c);
               const valid = isValidMove(r, c);
               const lastFrom = isLastMoveFrom(r, c);

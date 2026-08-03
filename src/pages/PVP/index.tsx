@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Modal, message } from 'antd';
-import { Swords, LogOut, User as UserIcon, Clock, Handshake, Flag, Trophy } from 'lucide-react';
+import { Clock, LogOut, User as UserIcon, Handshake, Flag, Undo2, Swords, Trophy } from 'lucide-react';
 import {
   type BoardGrid,
   type Position,
@@ -109,6 +109,8 @@ export const PvpPage: React.FC<PvpPageProps> = ({
   
   // Track opponent draw offer
   const [drawOfferReceived, setDrawOfferReceived] = useState<boolean>(false);
+  // Track opponent undo request
+  const [undoOfferReceived, setUndoOfferReceived] = useState<boolean>(false);
 
   const applyOpponentMove = useCallback((moveStr: string, newFen: string) => {
     const { board, turn: nextTurn } = fenToBoard(newFen);
@@ -213,11 +215,35 @@ export const PvpPage: React.FC<PvpPageProps> = ({
       message.info('Đối thủ đã từ chối lời cầu hòa.');
     };
 
+    const handleUndoRequested = (data: { requestedBy: string }) => {
+      if (data.requestedBy !== currentUserId) {
+        setUndoOfferReceived(true);
+      }
+    };
+
+    const handleUndoDeclined = () => {
+      message.info('Đối thủ không đồng ý cho đi lại.');
+    };
+
+    const handleUndoAccepted = (data: { deletedCount: number; fen: string }) => {
+      const { board, turn: newTurn } = fenToBoard(data.fen);
+      setBoardState(board);
+      setTurn(newTurn);
+      setSelectedPos(null);
+      setValidMoves([]);
+      setMoveHistory(prev => prev.slice(0, Math.max(0, prev.length - data.deletedCount)));
+      setLastMove(null); // Clear last move highlight
+      message.success('Xin đi lại thành công!');
+    };
+
     socket.on('match_info', handleMatchInfo);
     socket.on('move_made', handleMoveMade);
     socket.on('match_ended', handleMatchEnded);
     socket.on('draw_offered', handleDrawOffered);
     socket.on('draw_declined', handleDrawDeclined);
+    socket.on('undo_requested', handleUndoRequested);
+    socket.on('undo_declined', handleUndoDeclined);
+    socket.on('undo_accepted', handleUndoAccepted);
 
     return () => {
       socket.off('match_info', handleMatchInfo);
@@ -225,6 +251,9 @@ export const PvpPage: React.FC<PvpPageProps> = ({
       socket.off('match_ended', handleMatchEnded);
       socket.off('draw_offered', handleDrawOffered);
       socket.off('draw_declined', handleDrawDeclined);
+      socket.off('undo_requested', handleUndoRequested);
+      socket.off('undo_declined', handleUndoDeclined);
+      socket.off('undo_accepted', handleUndoAccepted);
       socketService.leaveRoom(roomId);
     };
   }, [matchId, currentUserId, applyOpponentMove, setActiveMatch, matchData.redPlayerId, matchData.redUsername, matchData.blackPlayerId, matchData.blackUsername, matchData.fen]);
@@ -248,6 +277,26 @@ export const PvpPage: React.FC<PvpPageProps> = ({
       });
     }
   }, [drawOfferReceived, matchId, gameResult]);
+
+  // Handle Undo Offer Modal Effect
+  useEffect(() => {
+    if (undoOfferReceived && !gameResult) {
+      Modal.confirm({
+        title: 'Đối thủ xin đi lại',
+        content: `Đối thủ muốn xin đi lại. Bạn có đồng ý không?`,
+        okText: 'Đồng ý',
+        cancelText: 'Từ chối',
+        onOk: () => {
+          socketService.respondUndo(matchId, true);
+          setUndoOfferReceived(false);
+        },
+        onCancel: () => {
+          socketService.respondUndo(matchId, false);
+          setUndoOfferReceived(false);
+        }
+      });
+    }
+  }, [undoOfferReceived, matchId, gameResult]);
 
   useEffect(() => {
     if (autoExitSeconds === null) return;
@@ -345,6 +394,17 @@ export const PvpPage: React.FC<PvpPageProps> = ({
     }
   };
 
+  const handleRequestUndo = () => {
+    if (matchId) {
+      if (moveHistory.length === 0) {
+        message.warning('Chưa có nước đi nào để xin đi lại!');
+        return;
+      }
+      socketService.requestUndo(matchId);
+      message.success('Đã xin đi lại. Đang chờ đối thủ đồng ý...');
+    }
+  };
+
   const redUsername = matchData.redUsername;
   const blackUsername = matchData.blackUsername;
 
@@ -426,7 +486,15 @@ export const PvpPage: React.FC<PvpPageProps> = ({
               <MoveHistory history={moveHistory} />
               
               {/* Controls - Same as Private Room */}
-              <div className="w-full grid grid-cols-2 gap-3">
+              <div className="w-full grid grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={handleRequestUndo}
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-[#ffffff] hover:bg-[#f4efe6] text-[#442a22] font-bold text-sm rounded-xl border border-[#d4c3be] shadow-xs active:scale-95 transition-all cursor-pointer"
+                >
+                  <Undo2 className="w-4 h-4" />
+                  <span>Xin Đi Lại</span>
+                </button>
                 <button
                   type="button"
                   onClick={handleOfferDraw}

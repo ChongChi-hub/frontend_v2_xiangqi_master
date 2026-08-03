@@ -209,6 +209,18 @@ class SocketService {
       this.socket.emit('respond_draw', { matchId, accept });
     }
   }
+
+  public requestUndo(matchId: string): void {
+    if (this.socket) {
+      this.socket.emit('request_undo', { matchId });
+    }
+  }
+
+  public respondUndo(matchId: string, accept: boolean): void {
+    if (this.socket) {
+      this.socket.emit('respond_undo', { matchId, accept });
+    }
+  }
 }
 
 export const socketService = new SocketService();

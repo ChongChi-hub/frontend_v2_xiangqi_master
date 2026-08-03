@@ -244,38 +244,6 @@ export const PvePage: React.FC = () => {
     }
   };
 
-  // Handle Undo Move
-  const handleUndo = () => {
-    if (isAiThinking || fenHistory.length <= 2) {
-      message.info('Không thể đi lại thêm nữa!');
-      return;
-    }
-
-    const newFenHistory = fenHistory.slice(0, fenHistory.length - 2);
-    const newMoveHistory = moveHistory.slice(0, moveHistory.length - 2);
-
-    const prevFen = newFenHistory[newFenHistory.length - 1];
-    const { board } = fenToBoard(prevFen);
-
-    const prevLastMove =
-      newMoveHistory.length > 0
-        ? {
-            from: newMoveHistory[newMoveHistory.length - 1].from,
-            to: newMoveHistory[newMoveHistory.length - 1].to,
-          }
-        : null;
-
-    setFenHistory(newFenHistory);
-    setMoveHistory(newMoveHistory);
-    setBoardState(board);
-    setTurn(playerSide);
-    setSelectedPos(null);
-    setValidMoves([]);
-    setLastMove(prevLastMove);
-    setHintMove(null);
-    message.success('Đã đi lại 1 nước!');
-  };
-
   // Handle Hint Request
   const handleHint = async () => {
     if (isAiThinking || turn !== playerSide || matchStatus !== 'playing') return;
@@ -413,11 +381,10 @@ export const PvePage: React.FC = () => {
               />
 
               <BoardControls
-                onUndo={handleUndo}
                 onHint={handleHint}
                 onResign={() => handleMatchEnd('lose')}
                 onRestart={() => handleStartMatch()}
-                canUndo={fenHistory.length > 2 && !isAiThinking}
+                isAiThinking={isAiThinking}
               />
             </div>
 

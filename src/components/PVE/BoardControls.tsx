@@ -1,36 +1,23 @@
 import React from 'react';
-import { Undo2, Lightbulb, Flag, RotateCcw } from 'lucide-react';
+import { Lightbulb, Flag, RotateCcw } from 'lucide-react';
 
 interface BoardControlsProps {
-  onUndo: () => void;
   onHint: () => void;
   onResign: () => void;
   onRestart: () => void;
-  canUndo: boolean;
   isAiThinking?: boolean;
   isHintLoading?: boolean;
 }
 
 export const BoardControls: React.FC<BoardControlsProps> = ({
-  onUndo,
   onHint,
   onResign,
   onRestart,
-  canUndo,
   isAiThinking = false,
   isHintLoading = false,
 }) => {
   return (
-    <div className="w-full grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <button
-        type="button"
-        onClick={onUndo}
-        disabled={!canUndo || isAiThinking}
-        className="flex items-center justify-center gap-2 px-4 py-3 bg-[#ffffff] hover:bg-[#f4efe6] text-[#442a22] font-semibold text-xs sm:text-sm rounded-xl border border-[#d4c3be] shadow-xs active:scale-95 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <Undo2 className="w-4 h-4" />
-        <span>Đi lại</span>
-      </button>
+    <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3">
 
       <button
         type="button"
